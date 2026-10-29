@@ -7,9 +7,9 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   const XP_BOSS = 100;
   const XP_LEVEL = 150;
   const LANES = {
-    mind: { label: "LEARN", symbol: "◈" },
-    build: { label: "BUILD", symbol: "⚡" },
-    body: { label: "BODY", symbol: "♥" }
+    mind: { label: "Learn" },
+    build: { label: "Build" },
+    body: { label: "Body" }
   };
   const $ = id => document.getElementById(id);
   function localDate(d = new Date()) {
@@ -109,7 +109,7 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   function syncBanner(message,mode=sync.mode,retry=false) {
     const banner=$("sync-banner");banner.dataset.mode=mode;
     banner.replaceChildren(document.createTextNode(message));
-    $("privacy-label").textContent=mode==="online"?"● Private shared profile":mode==="local"?"● Browser-only mode":"● Shared sync unavailable";
+    $("privacy-label").textContent=mode==="online"?"Shared profile":mode==="local"?"This browser only":"Not connected";
     if(sync.dirty || mode==="conflict"){
       const backup=element("button","","Export unsaved backup");backup.type="button";
       backup.addEventListener("click",exportBackup);banner.append(backup);
@@ -161,7 +161,7 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
       if(sync.operation===operation){sync.operation="update";sync.confirmation=null;}
       sync.dirty=sync.revision!==revision;
       if(sync.dirty)retainDraft();else clearDraft();
-      syncBanner(sync.dirty?"Saving remaining changes…":"✓ Synced securely · Shared with authorized visitors");
+      syncBanner(sync.dirty?"Saving remaining changes…":"All changes saved");
     } catch {
       sync.mode="error";sync.dirty=true;retainDraft();editable(false);
       syncBanner("Couldn't confirm the save. Your draft is kept in this tab, including after refresh. Retry or export it.",sync.mode,true);
@@ -196,7 +196,7 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
         editable(true);scheduleSave();syncBanner("Recovered this tab's unsaved changes. Retrying secure sync…");return;
       }
       clearDraft();sync.dirty=false;sync.operation="update";sync.confirmation=null;state=payload.state;render();editable(true);
-      syncBanner("✓ Connected · Private shared progress is up to date");
+      syncBanner("Shared profile loaded");
       if(payload.etag===null && hasProgress(localState) &&
           await ask("Upload this browser's existing ASCEND progress, including wellness, to the shared profile for both authorized people? Older entries remain unattributed.")) {
         state=localState;sync.operation="restore";sync.confirmation="REPLACE SHARED PROFILE";render();persist();
@@ -221,7 +221,7 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
       if(sync.revision!==revision || sync.dirty || sync.saving || sync.mode!=="online" || wellnessDraft ||
           document.querySelector("dialog[open]") || document.activeElement?.matches("input, textarea, select"))return;
       if(payload.etag!==sync.etag){
-        state=payload.state;sync.etag=payload.etag;render();syncBanner("✓ Updated with progress from the other browser");
+        state=payload.state;sync.etag=payload.etag;render();syncBanner("Updated from the other browser");
       }
     } catch {
       if(sync.revision===revision && !sync.dirty && !sync.saving){
@@ -251,13 +251,13 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   }
   function maybeRollover() {
     const nextDay=localDate(),nextWeek=isoWeek();
-    if(today!==nextDay || week!==nextWeek){today=nextDay;week=nextWeek;render();toast("New day. Choose up to three meaningful quests.");}
+    if(today!==nextDay || week!==nextWeek){today=nextDay;week=nextWeek;render();toast("New day. Add up to three quests.");}
   }
   function renderStats() {
     const {lanes,questCount,bossCount,xp}=totalStats();
     const lvl=Math.floor(xp/XP_LEVEL)+1;
     const into=xp%XP_LEVEL;
-    $("date-label").textContent=new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}).toUpperCase();
+    $("date-label").textContent=new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
     $("hero-level").textContent=String(lvl).padStart(2,"0");
     $("level-sub").textContent=into+" / "+XP_LEVEL+" XP";
     $("level-ring").style.setProperty("--ring",(into/XP_LEVEL*100)+"%");
@@ -273,15 +273,15 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   function renderQuests() {
     const host=$("quest-list");host.replaceChildren();
     const quests=currentQuests(),done=quests.filter(q=>q.done).length;
-    $("today-chip").textContent=done+" / 3 DONE";
+    $("today-chip").textContent=done+" / 3 done";
     $("quest-progress-fill").style.width=done/3*100+"%";
-    if(!quests.length)host.append(element("div","empty","Your questboard is empty. Pick one outcome you can finish today."));
+    if(!quests.length)host.append(element("div","empty","Add your first quest below."));
     quests.forEach(q=>{
       const row=element("div","quest"+(q.done?" done":""));
       const input=document.createElement("input");input.type="checkbox";input.checked=q.done;input.setAttribute("aria-label","Complete "+q.title);
-      input.addEventListener("change",()=>{q.done=input.checked;persist();render();toast(q.done?"+25 XP · Quest finished":"Quest marked unfinished");});
+      input.addEventListener("change",()=>{q.done=input.checked;persist();render();toast(q.done?"Quest completed · 25 XP":"Quest marked unfinished");});
       const main=element("div","quest-main");
-      main.append(element("strong","",q.title),element("small","",LANES[q.lane].symbol+" "+LANES[q.lane].label+" · +25 XP"));
+      main.append(element("strong","",q.title),element("small","",LANES[q.lane].label+" · 25 XP"));
       const remove=element("button","delete-quest","×");remove.type="button";remove.setAttribute("aria-label","Remove "+q.title);
       remove.addEventListener("click",()=>{state.days[today]=currentQuests().filter(item=>item.id!==q.id);persist();render();toast("Quest removed.");});
       const edit=element("button","edit-quest","Edit");edit.type="button";edit.setAttribute("aria-label","Edit "+q.title);
@@ -294,31 +294,31 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     });
     const full=quests.length>=3;
     $("quest-title").disabled=full;$("quest-lane").disabled=full;$("add-quest").disabled=full;
-    $("quest-title").placeholder=full?"Three quests chosen. Time to execute.":"e.g. Finish one working enemy AI mechanic";
+    $("quest-title").placeholder=full?"Three quests added for today":"e.g. Solve five practice questions";
     document.querySelectorAll(".suggestion").forEach(b=>b.disabled=full);
   }
   function addQuest(title,lane) {
     title=title.trim();if(!title)return;
-    if(currentQuests().length>=3){toast("Three quests max. Finish what you chose.");return;}
+    if(currentQuests().length>=3){toast("Today already has three quests.");return;}
     if(!LANES[lane])return;
     if(!state.days[today])state.days[today]=[];
     state.days[today].push({id:String(Date.now())+"-"+String(Math.random()).slice(2,8),title:title.slice(0,120),lane,done:false});
-    persist();render();toast("Quest added. Now make it happen.");
+    persist();render();toast("Quest added.");
   }
   function renderBoss() {
     const host=$("boss-box");host.replaceChildren();const boss=currentBoss();
     if(!boss || !boss.title) {
       const form=document.createElement("form");form.id="boss-form";
-      const label=element("label","field-label","THIS WEEK'S WIN CONDITION");label.htmlFor="boss-input";
-      const row=element("div","boss-form-row");const input=document.createElement("input");input.id="boss-input";input.maxLength=160;input.required=true;input.placeholder="What will exist by the end of the week?";
-      const btn=element("button","action-button","Set boss ↗");btn.type="submit";
+      const label=element("label","field-label","Weekly goal");label.htmlFor="boss-input";
+      const row=element("div","boss-form-row");const input=document.createElement("input");input.id="boss-input";input.maxLength=160;input.required=true;input.placeholder="e.g. Finish the first playable scene";
+      const btn=element("button","action-button","Set goal");btn.type="submit";
       row.append(input,btn);form.append(label,row);form.addEventListener("submit",e=>{
         e.preventDefault();const title=input.value.trim();if(!title)return;
-        state.bosses[week]={title,done:false};persist();render();toast("Weekly boss set.");
+        state.bosses[week]={title,done:false};persist();render();toast("Weekly goal added.");
       });host.append(form);return;
     }
     const row=element("div","boss-active");
-    const left=element("div");left.append(element("small","",week+" · WEEKLY WIN CONDITION"),element("strong","",boss.title));
+    const left=element("div");left.append(element("small","",week+" · Weekly goal"),element("strong","",boss.title));
     const edit=element("button","edit-boss","Edit objective");
     edit.addEventListener("click",async()=>{
       const next=await ask("Editing a completed weekly objective marks it unfinished.",{value:boss.title});
@@ -327,13 +327,13 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
       boss.title=next.trim().slice(0,160);boss.done=false;persist();render();
     });
     left.append(edit);
-    const btn=element("button","boss-button"+(boss.done?" done":""),boss.done?"✓ Boss defeated":"Defeat boss ↗");
-    btn.addEventListener("click",()=>{boss.done=!boss.done;persist();render();toast(boss.done?"+100 XP · You shipped a real outcome.":"Boss marked unfinished.");});
+    const btn=element("button","boss-button"+(boss.done?" done":""),boss.done?"Completed":"Mark complete");
+    btn.addEventListener("click",()=>{boss.done=!boss.done;persist();render();toast(boss.done?"Weekly goal completed · 100 XP":"Weekly goal reopened.");});
     row.append(left,btn);host.append(row);
   }
   function renderVault() {
     const list=$("vault-list");list.replaceChildren();
-    if(!state.vault.length){list.append(element("li","empty-vault","No distractions parked yet. Protect your focus when the next idea arrives."));return;}
+    if(!state.vault.length){list.append(element("li","empty-vault","No saved ideas."));return;}
     state.vault.forEach((text,i)=>{
       const li=element("li");li.append(element("span","",text));
       const b=element("button","","×");b.type="button";b.setAttribute("aria-label","Remove idea "+text);
@@ -341,7 +341,6 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
       li.append(b);list.append(li);
     });
   }
-  const moods={rough:"😞",low:"😕",okay:"😐",good:"🙂",great:"😄"};
   function renderWellness() {
     if(wellnessDraft)return;
     const entry=(state.wellness[today] || []).find(e=>e.authorId===userId) || null;
@@ -351,28 +350,34 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     $("wellness-sleep").value=entry && entry.sleep!==null?String(entry.sleep):"";
     $("wellness-energy").value=entry?.energy || "";
     $("wellness-note").value=entry?.note || "";
-    $("wellness-status").textContent=entry?"Your check-in is recorded. Check the sync status for save confirmation.":"You have not recorded a check-in today.";
-
-    const host=$("wellness-days");host.replaceChildren();
+    $("wellness-status").textContent=entry?"Check-in recorded. See sync status above.":"No check-in today.";
+    const host=$("wellness-days");
+    const opened=new Set(Array.from(host.querySelectorAll?.("details[open]") || []).map(n=>n.dataset.date));
+    const firstRender=!host.childElementCount;
+    host.replaceChildren();
     let count=0;
     for(let i=6;i>=0;i--){
       const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()-i);
-      const key=localDate(date),logs=state.wellness[key] || [],day=element("div","wellness-day"+(logs.length?" recorded":" missing"));
-      day.append(element("strong","",date.toLocaleDateString(undefined,{weekday:"short"})));
+      const key=localDate(date),logs=state.wellness[key] || [];
+      const day=element(logs.length?"details":"div","wellness-day"+(logs.length?" recorded":" missing"));
+      day.dataset.date=key;
+      const summary=element(logs.length?"summary":"div","day-summary");
+      summary.append(element("strong","",date.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})),
+        element("span","",logs.length?logs.length+(logs.length===1?" entry":" entries"):"No entry"));
+      day.append(summary);
+      if(logs.length)day.open=opened.has(key) || (firstRender && i===0);
       for(const log of logs){
-        const who=log.authorId===null?"Earlier entry · author unknown":log.authorId===userId?"You":"Other person";
-        day.append(element("span","mood-face",moods[log.mood] || "♡"),element("small","",who));
-        day.append(element("small","",log.sleep!==null?log.sleep+"h sleep":log.energy?log.energy+" energy":"Noted"));
-        if(log.note)day.append(element("span","wellness-history-note",log.note));
-        if(log.mood)day.append(element("small","","Mood: "+log.mood));
-        if(log.energy)day.append(element("small","","Energy: "+log.energy));
-        count++;
+        const record=element("div","wellness-entry");
+        const who=log.authorId===null?"Earlier entry (author unknown)":log.authorId===userId?"You":"Other person";
+        record.append(element("strong","",who));
+        const facts=[log.mood?"Mood: "+log.mood:"",log.sleep!==null?log.sleep+"h sleep":"",log.energy?"Energy: "+log.energy:""].filter(Boolean);
+        if(facts.length)record.append(element("small","",facts.join(" · ")));
+        if(log.note)record.append(element("span","wellness-history-note",log.note));
+        day.append(record);count++;
       }
-      if(!logs.length)day.append(element("span","mood-face","·"),element("small","","No check-in"));
-      day.setAttribute("aria-label",date.toDateString()+": "+logs.length+" check-ins");
       host.append(day);
     }
-    $("wellness-count").textContent=count+" SHARED CHECK-INS";
+    $("wellness-count").textContent=count+(count===1?" entry":" entries");
   }
   function weekStart(key) {
     const year=Number(key.slice(0,4)),weekNumber=Number(key.slice(6));
@@ -384,11 +389,11 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     const host=$("recent-wins");host.replaceChildren();
     const entries=[];
     for(const [date,quests] of Object.entries(state.days))for(const q of quests)
-      if(q.done)entries.push({date,title:q.title,sub:LANES[q.lane].label+" · +25 XP"});
+      if(q.done)entries.push({date,title:q.title,sub:LANES[q.lane].label+" · 25 XP"});
     for(const [date,boss] of Object.entries(state.bosses))
-      if(boss.done)entries.push({date,title:boss.title,sortDate:weekStart(date),sub:"WEEKLY BOSS · +100 XP"});
+      if(boss.done)entries.push({date,title:boss.title,sortDate:weekStart(date),sub:"Weekly goal · 100 XP"});
     entries.sort((a,b)=>(b.sortDate || b.date).localeCompare(a.sortDate || a.date));
-    if(!entries.length){host.append(element("div","empty","Your proof of progress appears here after the first finished quest."));return;}
+    if(!entries.length){host.append(element("div","empty","Completed quests and weekly goals will appear here."));return;}
     entries.slice(0,6).forEach(item=>{
       const row=element("div","win-row");const text=element("div");
       text.append(element("div","",item.title),element("small","",item.date+" · "+item.sub));
@@ -399,13 +404,13 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   function renderClock() {
     const m=Math.floor(timerRemaining/60),s=timerRemaining%60;
     $("timer").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
-    $("timer-toggle").textContent=timerRunning?"Pause":timerRemaining===0?"Restart ↗":"Start focus ↗";
+    $("timer-toggle").textContent=timerRunning?"Pause":timerRemaining===0?"Restart":"Start";
     document.querySelectorAll(".preset").forEach(b=>{b.classList.toggle("selected",Number(b.dataset.minutes)===timerMinutes);b.disabled=timerRunning;});
   }
   function tick() {
     if(timerRunning){
       timerRemaining=Math.max(0,Math.ceil((timerEnd-Date.now())/1000));
-      if(timerRemaining===0){timerRunning=false;timerEnd=null;toast("Focus sprint finished! Record a real outcome to earn XP.");}
+      if(timerRemaining===0){timerRunning=false;timerEnd=null;toast("Focus session finished.");}
       renderClock();
     }
     maybeRollover();
@@ -445,21 +450,21 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     wellnessDraft=false;
     const records=state.wellness[today] || [];
     state.wellness[today]=[...records.filter(e=>e.authorId!==userId),{authorId:userId,mood,sleep,energy,note}];
-    persist();renderWellness();toast(sync.mode==="online"?"Wellness queued for shared sync. No XP needed.":"Wellness saved in this browser. No XP needed.");
+    persist();renderWellness();toast(sync.mode==="online"?"Check-in queued for sync.":"Check-in saved in this browser.");
   });
   $("quest-form").addEventListener("submit",e=>{
     e.preventDefault();addQuest($("quest-title").value,$("quest-lane").value);$("quest-title").value="";
   });
   const examples={
-    mind:"Solve five challenging questions without copying answers",
-    build:"Finish and test one working game mechanic",
-    body:"Complete a workout or a meaningful walk"
+    mind:"Solve five practice questions",
+    build:"Test one feature",
+    body:"Go for a walk"
   };
   document.querySelectorAll(".suggestion").forEach(b=>b.addEventListener("click",()=>addQuest(examples[b.dataset.suggestion],b.dataset.suggestion)));
   $("vault-form").addEventListener("submit",e=>{
     e.preventDefault();const text=$("vault-input").value.trim();
     if(!text)return;if(state.vault.length>=100){toast("Idea vault is full. Review older ideas.");return;}
-    state.vault.push(text.slice(0,140));$("vault-input").value="";persist();renderVault();toast("Idea parked. Back to your current quest.");
+    state.vault.push(text.slice(0,140));$("vault-input").value="";persist();renderVault();toast("Idea saved.");
   });
   document.querySelectorAll(".preset").forEach(b=>b.addEventListener("click",()=>{
     if(timerRunning)return;timerMinutes=Number(b.dataset.minutes);timerRemaining=timerMinutes*60;renderClock();
@@ -473,6 +478,9 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     timerRunning=false;timerEnd=null;timerRemaining=timerMinutes*60;renderClock();
   });
   $("export").addEventListener("click",exportBackup);
+  document.querySelector('label[for="import-file"]')?.addEventListener("keydown",e=>{
+    if(e.key==="Enter" || e.key===" "){e.preventDefault();$("import-file").click();}
+  });
   $("import-file").addEventListener("change",async e=>{
     const f=e.target.files?.[0];e.target.value="";if(!f)return;
     if(f.size>2_000_000){toast("Backup must be under 2 MB.");return;}
