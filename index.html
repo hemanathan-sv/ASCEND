@@ -18,6 +18,7 @@
       <a href="#today" class="side-link active"><span>◈</span> Today's quests</a>
       <a href="#boss" class="side-link"><span>✦</span> Weekly boss</a>
       <a href="#focus" class="side-link"><span>◉</span> Focus sprint</a>
+      <a href="#wellness" class="side-link"><span>♡</span> Wellness</a>
       <a href="#vault" class="side-link"><span>⌑</span> Idea vault</a>
     </nav>
     <div class="side-bottom">
@@ -73,9 +74,30 @@
           <div class="growth-list">
             <div class="growth-row"><div class="growth-heading"><span><b class="lane-icon mind">◈</b> Learn <small>Academics + fundamentals</small></span><strong id="mind-xp">0 XP</strong></div><div class="growth-track"><div id="mind-bar" class="growth-fill mind"></div></div></div>
             <div class="growth-row"><div class="growth-heading"><span><b class="lane-icon build">⚡</b> Build <small>Games + technology</small></span><strong id="build-xp">0 XP</strong></div><div class="growth-track"><div id="build-bar" class="growth-fill build"></div></div></div>
-            <div class="growth-row"><div class="growth-heading"><span><b class="lane-icon body">♥</b> Body <small>Movement + wellbeing</small></span><strong id="body-xp">0 XP</strong></div><div class="growth-track"><div id="body-bar" class="growth-fill body"></div></div></div>
+            <div class="growth-row"><div class="growth-heading"><span><b class="lane-icon body">♥</b> Body <small>Movement + fitness</small></span><strong id="body-xp">0 XP</strong></div><div class="growth-track"><div id="body-bar" class="growth-fill body"></div></div></div>
           </div>
           <div class="growth-note">There is no punishment for breaks. Come back tomorrow and continue.</div>
+        </section>
+        <section class="card wellness-card" id="wellness" aria-labelledby="wellness-title">
+          <div class="card-head"><div><div class="kicker">RECOVERY IS PROGRESS TOO</div><h2 id="wellness-title">Wellness check-in <span class="wellness-heart">♡</span></h2></div><span class="chip">NO XP, NO PRESSURE</span></div>
+          <p class="subcopy">Take 30 seconds to notice how you feel. Every field is optional, and this never affects your level.</p>
+          <form id="wellness-form">
+            <fieldset class="mood-fieldset"><legend class="field-label">HOW ARE YOU FEELING TODAY?</legend><div class="mood-options" role="radiogroup" aria-label="Mood">
+              <label class="mood-option"><input type="radio" name="wellness-mood" value="rough"><span>😞<small>Rough</small></span></label>
+              <label class="mood-option"><input type="radio" name="wellness-mood" value="low"><span>😕<small>Low</small></span></label>
+              <label class="mood-option"><input type="radio" name="wellness-mood" value="okay"><span>😐<small>Okay</small></span></label>
+              <label class="mood-option"><input type="radio" name="wellness-mood" value="good"><span>🙂<small>Good</small></span></label>
+              <label class="mood-option"><input type="radio" name="wellness-mood" value="great"><span>😄<small>Great</small></span></label>
+            </div></fieldset>
+            <div class="wellness-fields">
+              <div><label class="field-label" for="wellness-sleep">SLEEP LAST NIGHT (HOURS)</label><input type="number" id="wellness-sleep" min="0" max="24" step="0.5" placeholder="Optional" inputmode="decimal"></div>
+              <div><label class="field-label" for="wellness-energy">ENERGY TODAY</label><select id="wellness-energy"><option value="">Not sure / skip</option><option value="low">Low</option><option value="okay">Okay</option><option value="high">High</option></select></div>
+            </div>
+            <label class="field-label" for="wellness-note">WHAT WOULD HELP YOU TODAY?</label><input id="wellness-note" maxlength="180" placeholder="Rest, a walk, talking to someone… (optional)">
+            <div class="wellness-form-foot"><span id="wellness-status">Nothing recorded today.</span><button class="action-button" type="submit">Save check-in ↗</button></div>
+          </form>
+          <div class="wellness-history"><div class="wellness-history-title">YOUR LAST 7 DAYS <span id="wellness-count">0 CHECK-INS</span></div><div id="wellness-days" class="wellness-days"></div></div>
+          <p class="wellness-privacy">Private to this browser. Your feelings and sleep are not scored, ranked, or sent anywhere.</p>
         </section>
         <section class="card" id="vault" aria-labelledby="vault-title">
           <div class="card-head"><div><div class="kicker">NOT NOW ≠ NEVER</div><h2 id="vault-title">Idea vault</h2></div><span class="chip">PARK DISTRACTIONS</span></div>
