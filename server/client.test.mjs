@@ -22,7 +22,7 @@ class Element {
   click(){}
 }
 const response=(state=blank(),n=1)=>new Response(JSON.stringify({etag:etag(n),state,userId:"test-account",schemaVersion:3}));
-async function harness(fetcher=async()=>response(),session=storage(),local=storage()){
+async function harness(fetcher=async()=>response(),session=storage(),local=storage(),pages=false){
   const ids=new Map(),cards=Array.from({length:7},()=>new Element());
   const doc={
     hidden:false,activeElement:null,body:new Element(),
@@ -46,7 +46,7 @@ async function harness(fetcher=async()=>response(),session=storage(),local=stora
       }
       return n;
     },createTextNode:text=>({textContent:text}),
-    querySelector:selector=>selector.includes("ascend-shared-required")?{}:null,
+    querySelector:selector=>selector.includes("ascend-shared-required")?(pages?null:{}):selector.includes("ascend-storage")?(pages?{}:null):null,
     querySelectorAll:selector=>selector===".card"?cards:[],
     addEventListener(){}
   };
@@ -158,6 +158,21 @@ test("hosted API failures never silently enter browser-only mode",async()=>{
   for(const status of [401,403,404,503]){
     const h=await harness(async()=>new Response("{}",{status}));assert.equal(h.app.sync.mode,"error");
   }
+});
+
+test("Pages saves quests and wellness locally across reload without contacting an API",async()=>{
+  const local=storage();let requests=0;
+  const fetcher=async()=>{requests++;throw new Error("Pages has no backend");};
+  const h=await harness(fetcher,storage(),local,true);
+  assert.equal(h.app.sync.mode,"local");
+  h.app.addQuest("Pages persistence check","build");
+  h.ids.get("wellness-note").value="Local check-in";
+  await h.ids.get("wellness-form").fire("submit");
+  const reloaded=await harness(fetcher,storage(),local,true);
+  assert.deepEqual(copy(reloaded.app.state),copy(h.app.state));
+  assert.equal(reloaded.app.state.days[reloaded.app.localDate()][0].title,"Pages persistence check");
+  assert.equal(reloaded.app.state.wellness[reloaded.app.localDate()][0].note,"Local check-in");
+  assert.equal(requests,0);
 });
 
 test("ISO week boundaries and local calendar dates stay consistent",async()=>{

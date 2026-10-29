@@ -2,7 +2,9 @@
 
 A small tracker for daily quests, weekly outcomes, skill XP, ideas and optional wellness check-ins. No streak penalties, sleep targets, analytics, external fonts or wellness XP.
 
-Open [ASCEND on GitHub Pages](https://hemanathan-sv.github.io/ASCEND/). This public entry page redirects to the existing private app, where invited accounts sign in. The repository is public; shared records stay in private storage.
+Open [ASCEND on GitHub Pages](https://hemanathan-sv.github.io/ASCEND/). The complete website runs directly on Pages. Quests, XP, weekly goals, ideas, focus timer and optional wellness check-ins work there. Progress is saved in that browser; use JSON export/import to move a backup. This deployment has no account system or automatic cross-device sync.
+
+The separate [private shared app](https://ascend-private-questboard.hemanathansv.chatgpt.site/) continues to hold the invited accounts' existing shared records. Pages does not copy or access those records.
 
 ## Shared profile
 
@@ -57,9 +59,11 @@ Keep the existing project ID and `r2: "BUCKET"` in `.openai/hosting.json`.
 
 ## GitHub Pages
 
-The Actions workflow verifies the shared app, then builds and deploys only `pages/index.html` and its fallback to GitHub Pages on main. In repository Settings → Pages, the build source is GitHub Actions. Pull requests run verification without publishing.
+The Actions workflow verifies the app, then builds and deploys the static website to GitHub Pages on main. In repository Settings → Pages, the build source is GitHub Actions. Pull requests run verification without publishing.
 
-Run `npm run build:pages` to build the public entry page in `dist/pages`. The Pages artifact contains no app bundle, API, account details or saved records. GitHub Pages serves static files; the private Worker and R2 storage continue running on Sites. The separate private build remains `npm run build` and must never be uploaded to Pages. Sites publication uses its supported authenticated workflow; do not store hosting tokens in workflows.
+Run `npm run build:pages` to build the complete frontend in `dist/pages`: `index.html`, `style.css`, `app.js`, `state.mjs` and `.nojekyll`. Relative asset paths support the `/ASCEND/` project URL. The Pages HTML explicitly selects browser storage, makes no sync API request and shows that data stays on this device. There is no redirect. Source HTML remains configured for the separate private Worker build. No server, account details, backups or saved records enter the Pages artifact.
+
+The private Worker and R2 storage continue running on Sites. The separate private build remains `npm run build` and must never be uploaded to Pages. Sites publication uses its supported authenticated workflow; do not store hosting tokens in workflows.
 
 ## Security boundary
 

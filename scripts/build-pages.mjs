@@ -7,12 +7,22 @@ const output = resolve(root, 'dist', 'pages');
 if (!output.startsWith(root + sep) || output !== resolve(root, 'dist', 'pages')) {
   throw new Error('Refusing to clean an unexpected output directory.');
 }
-const html = await readFile(resolve(root, 'pages', 'index.html'), 'utf8');
+const html = (await readFile(resolve(root, 'index.html'), 'utf8'))
+  .replace('</head>', '<meta name="ascend-storage" content="local"></head>')
+  .replace('ASCEND: a private, shared questboard for daily tasks, weekly goals and wellness.', 'ASCEND: daily quests, weekly goals, a focus timer and optional wellness check-ins. Progress is saved in your browser.')
+  .replaceAll('Shared questboard', 'Personal questboard')
+  .replace('Private to the two of you.', 'Progress stays in this browser.')
+  .replace('Loading shared progress…', 'Loading your progress…')
+  .replace('aria-label="Shared progress"', 'aria-label="Your progress"')
+  .replace('Your own daily check-in. Both of you can read the history.', 'Your daily check-in, saved on this device.')
+  .replace('ASCEND · Shared progress', 'ASCEND · Personal questboard')
+  .replace('Reset shared data', 'Reset browser data');
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await Promise.all([
   writeFile(resolve(output, 'index.html'), html),
-  writeFile(resolve(output, '404.html'), html),
+  ...['style.css', 'app.js', 'state.mjs'].map(async file =>
+    writeFile(resolve(output, file), await readFile(resolve(root, file)))),
   writeFile(resolve(output, '.nojekyll'), ''),
 ]);
-console.log('Built public ASCEND entry page in dist/pages.');
+console.log('Built the complete ASCEND browser app in dist/pages.');

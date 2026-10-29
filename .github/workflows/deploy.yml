@@ -50,9 +50,9 @@ jobs:
           package-manager-cache: false
       - name: Configure Pages
         uses: actions/configure-pages@v5
-      - name: Build public entry page
+      - name: Build ASCEND website
         run: node scripts/build-pages.mjs
-      - name: Upload public entry page
+      - name: Upload ASCEND website
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist/pages

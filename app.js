@@ -67,7 +67,7 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   function ask(message,{value=null,phrase=null,maxLength=160}={}) {
     return new Promise(resolve=>{
       const dialog=element("dialog","action-dialog"),form=element("form");
-      const heading=element("h2","",value!==null?"Edit objective":"Confirm shared action");
+      const heading=element("h2","",value!==null?"Edit objective":sync.mode==="local"?"Confirm action":"Confirm shared action");
       heading.id="action-dialog-title";dialog.setAttribute("aria-labelledby",heading.id);
       const description=element("p","",message),row=element("div","dialog-actions");
       let input;
@@ -172,6 +172,12 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   }
   async function initializeSync() {
     if(sync.saving)return;
+    if(document.querySelector('meta[name="ascend-storage"][content="local"]') &&
+        !document.querySelector('meta[name="ascend-shared-required"]')){
+      state=read();sync.mode="local";render();
+      syncBanner("Saved in this browser. Export a backup to keep a copy. This version does not sync across devices.");
+      editable(true);return;
+    }
     if(location.protocol==="file:"){
       state=read();sync.mode="local";render();syncBanner("Browser-only mode · Open the private hosted app to sync across devices.");editable(true);return;
     }
