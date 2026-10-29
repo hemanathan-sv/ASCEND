@@ -16,6 +16,7 @@ const html = (await readFile(resolve(root, 'index.html'), 'utf8'))
   .replace('aria-label="Shared progress"', 'aria-label="Your progress"')
   .replace('Your own daily check-in. Both of you can read the history.', 'Your daily check-in, saved on this device.')
   .replace('ASCEND · Shared progress', 'ASCEND · Personal questboard')
+  .replace('<span class="section-note">Shared</span>', '<span class="section-note">This browser</span>')
   .replace('Reset shared data', 'Reset browser data');
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });

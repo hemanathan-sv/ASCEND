@@ -356,7 +356,7 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     $("wellness-sleep").value=entry && entry.sleep!==null?String(entry.sleep):"";
     $("wellness-energy").value=entry?.energy || "";
     $("wellness-note").value=entry?.note || "";
-    $("wellness-status").textContent=entry?"Check-in recorded. See sync status above.":"No check-in today.";
+    $("wellness-status").textContent=entry?(sync.mode==="local"?"Check-in saved in this browser.":"Check-in recorded. See sync status above."):"No check-in today.";
     const host=$("wellness-days");
     const opened=new Set(Array.from(host.querySelectorAll?.("details[open]") || []).map(n=>n.dataset.date));
     const firstRender=!host.childElementCount;
