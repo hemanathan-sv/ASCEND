@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0e16">
+  <meta name="description" content="Your personal game development workbench. Scope a playable prototype, build with AI, and track what actually ships.">
+  <title>Game Forge — Private Studio</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Studio navigation">
+      <div class="brand"><div class="brand-mark" aria-hidden="true">✦</div><div><strong>GAME FORGE</strong><small>PERSONAL STUDIO / 01</small></div></div>
+      <div class="sidebar-label">YOUR WORKSPACE</div>
+      <nav class="nav">
+        <button class="nav-link active" data-view="workbench"><span>◫</span> Workbench</button>
+        <button class="nav-link" data-view="prompts"><span>⌘</span> Prompt Lab</button>
+        <button class="nav-link" data-view="playtest"><span>✓</span> Playtest</button>
+        <button class="nav-link" data-view="journal"><span>≡</span> Journal</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="side-stat"><div class="tiny-label">CURRENT BUILD</div><strong id="side-project">No project yet</strong><div class="side-progress"><i id="side-progress-bar"></i></div><small id="side-count">0 / 0 tasks shipped</small></div>
+        <div class="privacy-dot"><span></span> Saved in this browser only</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div class="breadcrumb">STUDIO <span>/</span> <strong id="page-name">WORKBENCH</strong></div><div class="top-actions"><span class="local-pill">● PRIVATE WORKSPACE</span><button id="export-btn" class="quiet-btn" title="Download a backup of your project">↓ Export</button></div></header>
+
+      <section id="view-workbench" class="view active" aria-labelledby="workbench-title">
+        <div class="hero"><div class="hero-copy"><div class="eyebrow"><span class="dash"></span> ONE GAME. ONE PLAYABLE PROTOTYPE.</div><h1 id="workbench-title">Turn a wild idea<br>into a <em>real game.</em></h1><p>No imaginary AI company required. Pick your game, define the smallest fun version, and hand clear tasks to your coding assistant.</p></div><div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="core"><span>G</span><div class="core-glow"></div></div><div class="star star-a">✦</div><div class="star star-b">+</div></div></div>
+
+        <div class="two-col">
+          <section class="panel project-panel" aria-labelledby="project-title"><div class="panel-heading"><div><div class="eyebrow muted">01 / DEFINE</div><h2 id="project-title">Your next game</h2></div><span class="mini-chip">START HERE</span></div>
+            <form id="project-form">
+              <label for="game-name">Project name</label><input id="game-name" name="game-name" maxlength="60" placeholder="e.g. Echo Dungeon" required>
+              <label for="game-idea">The idea in one or two sentences</label><textarea id="game-idea" name="game-idea" rows="3" maxlength="800" placeholder="What does the player do? What makes it interesting?" required></textarea>
+              <div class="form-split"><div><label for="game-genre">Game type</label><select id="game-genre"><option value="Adventure / RPG">Adventure / RPG</option><option value="Survival">Survival</option><option value="Simulation">Simulation</option><option value="Strategy">Strategy</option><option value="Platformer">Platformer</option><option value="Other">Other</option></select></div><div><label for="game-platform">Target</label><select id="game-platform"><option value="Desktop">Desktop</option><option value="Browser">Browser</option><option value="Mobile">Mobile</option></select></div></div>
+              <label for="game-ai">One intelligent feature to prove first</label><select id="game-ai"><option value="NPC memory and reactive dialogue">NPC memory + reactive dialogue</option><option value="Enemies that adapt to player behavior">Adaptive enemy tactics</option><option value="Dynamic quests shaped by player choices">Choice-driven quests</option><option value="Autonomous characters with routines">Autonomous NPC routines</option><option value="Procedural encounters with adaptive difficulty">Adaptive encounters</option></select>
+              <button class="primary-btn full" type="submit">Forge the playable plan <span>↗</span></button>
+              <p class="form-note">Reforging updates this project’s checklist. Export first if you want to keep the old one.</p>
+            </form>
+          </section>
+
+          <section class="right-column"><div class="panel next-panel"><div class="panel-heading"><div><div class="eyebrow muted">02 / EXECUTE</div><h2>Next best action</h2></div><div class="live-dot"></div></div><div id="next-action" class="next-content"><div class="empty-icon">↗</div><h3>Start with one idea.</h3><p>Your first concrete task will appear here when you forge a plan.</p></div></div>
+            <div class="guidance"><span class="guidance-icon">✳</span><div><strong>The rule of the forge</strong><p>Ship one playable room before ten clever systems. Make every AI feature prove something the player can feel.</p></div></div>
+          </section>
+        </div>
+
+        <section class="panel roadmap" aria-labelledby="roadmap-title"><div class="panel-heading"><div><div class="eyebrow muted">03 / SHIP</div><h2 id="roadmap-title">Prototype roadmap</h2></div><div class="progress-wrap"><span id="progress-label">0% complete</span><div id="progress-ring" class="progress-ring" aria-hidden="true"><span id="progress-num">0</span></div></div></div><div id="roadmap-body" class="roadmap-body"><p class="empty-state">Your playable-first checklist will appear here. No giant roadmap, just the steps needed to get something working.</p></div></section>
+      </section>
+
+      <section id="view-prompts" class="view" aria-labelledby="prompt-title"><div class="section-intro"><div class="eyebrow"><span class="dash"></span> BUILD WITH THE AI YOU ALREADY HAVE</div><h1 id="prompt-title">Prompt <em>Lab.</em></h1><p>Useful instructions for an AI coding assistant. Copy them into your preferred tool—no API key or subscription connection required.</p></div><div class="panel"><div class="panel-heading"><div><div class="eyebrow muted">CHOOSE A ROLE</div><h2>Clear work. Real results.</h2></div><span class="mini-chip">COPY & RUN</span></div><div class="agent-tabs" role="tablist" aria-label="AI agent role"><button class="agent-tab active" data-agent="builder" role="tab" aria-selected="true">⚒ Builder</button><button class="agent-tab" data-agent="designer" role="tab" aria-selected="false">◇ Designer</button><button class="agent-tab" data-agent="reviewer" role="tab" aria-selected="false">✓ Reviewer</button><button class="agent-tab" data-agent="tester" role="tab" aria-selected="false">◎ Playtester</button></div><div class="prompt-toolbar"><span id="prompt-description">Build the next small working feature.</span><button id="copy-prompt" class="secondary-btn">Copy prompt ↗</button></div><pre id="prompt-output" class="prompt-output"></pre></div><div class="guidance prompt-guidance"><span class="guidance-icon">!</span><div><strong>Human-in-the-loop, always.</strong><p>Review code, test the result, and approve changes yourself. Keep credentials out of prompts and repositories.</p></div></div></section>
+
+      <section id="view-playtest" class="view" aria-labelledby="playtest-title"><div class="section-intro"><div class="eyebrow"><span class="dash"></span> PROVE IT PLAYS</div><h1 id="playtest-title">Playtest <em>Gate.</em></h1><p>Don't call it complete because an agent says “done.” Try it yourself and check what actually works.</p></div><div class="panel"><div class="panel-heading"><div><div class="eyebrow muted">RELEASE CHECKS</div><h2>Can someone really play this?</h2></div><span id="test-score" class="mini-chip">0 / 0 VERIFIED</span></div><div id="checks" class="checks"></div></div><div class="guidance prompt-guidance"><span class="guidance-icon">↻</span><div><strong>Break it on purpose.</strong><p>Test the normal path, the failure path, and what happens when you restart or lose your connection.</p></div></div></section>
+
+      <section id="view-journal" class="view" aria-labelledby="journal-title"><div class="section-intro"><div class="eyebrow"><span class="dash"></span> KEEP YOUR THINKING, NOT THE CLUTTER</div><h1 id="journal-title">Build <em>Journal.</em></h1><p>Capture bugs, decisions, and ideas that don't belong in the current prototype.</p></div><div class="two-col journal-grid"><div class="panel"><div class="panel-heading"><div><div class="eyebrow muted">DEV LOG</div><h2>Notes & blockers</h2></div><span class="mini-chip">AUTO-SAVED</span></div><label for="journal-notes">What changed? What broke? What did you learn?</label><textarea id="journal-notes" class="journal-textarea" rows="13" placeholder="Today I built...\nThe bug I need to fix is...\nWhat I learned is..."></textarea></div><div class="panel"><div class="panel-heading"><div><div class="eyebrow muted">LATER, NOT NEVER</div><h2>Idea parking lot</h2></div></div><form id="parking-form" class="parking-form"><label for="parking-input">Park extra features here instead of expanding your MVP.</label><div class="inline-form"><input id="parking-input" maxlength="180" placeholder="e.g. Voice-controlled NPCs" required><button class="secondary-btn" type="submit">+ Add</button></div></form><ul id="parking-list" class="parking-list"></ul></div></div></section>
+
+      <footer class="footer"><span>GAME FORGE <span class="footer-divider">/</span> Built for making, not just imagining.</span><div><label for="import-file" class="footer-action">Import backup</label><input id="import-file" type="file" accept="application/json,.json" hidden><button id="reset-btn" class="footer-action">Reset workspace</button></div></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
