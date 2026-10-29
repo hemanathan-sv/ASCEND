@@ -24,7 +24,7 @@
     <div class="side-bottom">
       <div class="side-quote">“Evidence beats motivation.”</div>
       <p>Progress is what you can demonstrate. Missed a day? Just restart.</p>
-      <div class="privacy">● Stored only in this browser</div>
+      <div class="privacy" id="privacy-label">● Checking private sync…</div>
     </div>
   </aside>
   <main class="main">
@@ -32,6 +32,7 @@
       <div class="overline"><span class="dot"></span> PERSONAL MISSION CONTROL <span class="slash">/</span> <span id="date-label"></span></div>
       <div class="top-actions"><button class="text-button" id="export">↓ Export backup</button><label class="text-button import-label" for="import-file">↑ Import</label><input type="file" id="import-file" accept="application/json,.json" hidden></div>
     </header>
+    <div class="sync-banner" id="sync-banner" role="status" aria-live="polite">Checking shared progress…</div>
     <section class="hero">
       <div class="hero-copy"><div class="eyebrow">THE ASCEND PROTOCOL <span class="hero-number">01 / ∞</span></div><h1>Level up in <em>real life.</em></h1><p>No perfect schedule. No 50-step productivity system. Just three meaningful quests today, one real outcome this week, and proof you are moving forward.</p><div class="hero-meta"><span><i></i> YOUR PACE. YOUR RULES.</span><span>BUILD &gt; HYPE</span></div></div>
       <div class="hero-level"><div class="level-ring" id="level-ring"><div class="level-inner"><small>CURRENT LEVEL</small><strong id="hero-level">01</strong><span id="level-sub">0 / 150 XP</span></div></div><div class="level-caption">EVERY COMPLETED QUEST COUNTS</div></div>
@@ -97,7 +98,7 @@
             <div class="wellness-form-foot"><span id="wellness-status">Nothing recorded today.</span><button class="action-button" type="submit">Save check-in ↗</button></div>
           </form>
           <div class="wellness-history"><div class="wellness-history-title">YOUR LAST 7 DAYS <span id="wellness-count">0 CHECK-INS</span></div><div id="wellness-days" class="wellness-days"></div></div>
-          <p class="wellness-privacy">Private to this browser. Your feelings and sleep are not scored, ranked, or sent anywhere.</p>
+          <p class="wellness-privacy">When private sync is connected, both authorized people can see these check-ins. Feelings and sleep never affect XP.</p>
         </section>
         <section class="card" id="vault" aria-labelledby="vault-title">
           <div class="card-head"><div><div class="kicker">NOT NOW ≠ NEVER</div><h2 id="vault-title">Idea vault</h2></div><span class="chip">PARK DISTRACTIONS</span></div>
@@ -111,7 +112,7 @@
         </section>
       </div>
     </div>
-    <footer><span>ASCEND <i>/</i> FINISH THINGS. LEARN THINGS. LIVE FULLY.</span><div><button class="text-button" id="reset-data">Reset data</button><span>v1.0 • Offline-first</span></div></footer>
+    <footer><span>ASCEND <i>/</i> FINISH THINGS. LEARN THINGS. LIVE FULLY.</span><div><button class="text-button" id="reset-data">Reset data</button><span>v2.0 • Shared-ready</span></div></footer>
   </main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
