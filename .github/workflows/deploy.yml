@@ -1,38 +1,29 @@
-name: Deploy ASCEND to GitHub Pages
+name: ASCEND private build checks
 
-# Deliberately manual: Pages is normally public even for a private repository.
-# Enable publication only after confirming the audience.
+# GitHub Pages is intentionally disabled: private source does not mean private Pages.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: ascend-pages
-  cancel-in-progress: true
 
 jobs:
-  deploy:
+  verify:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out ASCEND
         uses: actions/checkout@v4
-      - name: Prepare ASCEND-only site
-        run: |
-          mkdir -p public
-          cp index.html style.css app.js public/
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
         with:
-          path: ./public
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          node-version: "24"
+      - name: Check browser app syntax
+        run: node --check app.js
+      - name: Test access control and shared-state storage
+        run: node --test server/shared.test.mjs
+      - name: Build private hosting artifact
+        run: node scripts/build-private.mjs
+      - name: Test private bundle
+        run: node --test server/bundle.test.mjs
