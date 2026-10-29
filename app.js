@@ -10,7 +10,7 @@
     body: { label: "BODY", symbol: "♥" }
   };
   const $ = id => document.getElementById(id);
-  function blank() { return { days: {}, bosses: {}, vault: [] }; }
+  function blank() { return { days: {}, bosses: {}, wellness: {}, vault: [] }; }
   function localDate(d = new Date()) {
     return [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
   }
@@ -37,6 +37,18 @@
         for(const [week,boss] of Object.entries(v.bosses).slice(-100)) {
           if(!/^\d{4}-W\d{2}$/.test(week) || !boss || typeof boss.title !== "string") continue;
           safe.bosses[week]={title:boss.title.slice(0,160),done:!!boss.done};
+        }
+      }
+      if(v.wellness && typeof v.wellness==="object" && !Array.isArray(v.wellness)) {
+        for(const [date,entry] of Object.entries(v.wellness).slice(-500)) {
+          if(!/^\d{4}-\d{2}-\d{2}$/.test(date) || !entry || typeof entry!=="object") continue;
+          const sleep=(entry.sleep===null || entry.sleep==="" || entry.sleep===undefined)?null:Number(entry.sleep);
+          safe.wellness[date]={
+            mood:["rough","low","okay","good","great"].includes(entry.mood)?entry.mood:"",
+            sleep:sleep!==null && Number.isFinite(sleep) && sleep>=0 && sleep<=24?sleep:null,
+            energy:["low","okay","high"].includes(entry.energy)?entry.energy:"",
+            note:typeof entry.note==="string"?entry.note.slice(0,180):""
+          };
         }
       }
       if(Array.isArray(v.vault)) safe.vault=v.vault.filter(s=>typeof s==="string").slice(0,100).map(s=>s.slice(0,140));
@@ -166,6 +178,32 @@
       li.append(b);list.append(li);
     });
   }
+  const moods={rough:"😞",low:"😕",okay:"😐",good:"🙂",great:"😄"};
+  function renderWellness() {
+    const entry=state.wellness[today] || null;
+    document.querySelectorAll('input[name="wellness-mood"]').forEach(input=>{
+      input.checked=!!entry && input.value===entry.mood;
+    });
+    $("wellness-sleep").value=entry && entry.sleep!==null?String(entry.sleep):"";
+    $("wellness-energy").value=entry?.energy || "";
+    $("wellness-note").value=entry?.note || "";
+    $("wellness-status").textContent=entry?"Today's check-in is saved. You can update it.":"Nothing recorded today.";
+
+    const host=$("wellness-days");host.replaceChildren();
+    let count=0;
+    for(let i=6;i>=0;i--){
+      const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()-i);
+      const key=localDate(date),log=state.wellness[key],day=element("div","wellness-day"+(log?" recorded":" missing"));
+      day.append(element("strong","",date.toLocaleDateString(undefined,{weekday:"short"})));
+      day.append(element("span","mood-face",log?(moods[log.mood] || "♡"):"·"));
+      day.append(element("small","",log?(log.sleep!==null?log.sleep+"h sleep":(log.energy?log.energy+" energy":"Noted")):"—"));
+      const detail=log?[log.mood?"Mood: "+log.mood:"",log.sleep!==null?"Sleep: "+log.sleep+" hours":"",log.energy?"Energy: "+log.energy:"",log.note].filter(Boolean).join(" · "):"No check-in";
+      day.setAttribute("aria-label",date.toDateString()+": "+detail);
+      if(log)count++;
+      host.append(day);
+    }
+    $("wellness-count").textContent=count+" / 7 CHECK-INS";
+  }
   function renderWins() {
     const host=$("recent-wins");host.replaceChildren();
     const entries=[];
@@ -181,7 +219,7 @@
       row.append(element("div","check","✓"),text);host.append(row);
     });
   }
-  function render() { renderStats();renderQuests();renderBoss();renderVault();renderWins(); }
+  function render() { renderStats();renderQuests();renderBoss();renderWellness();renderVault();renderWins(); }
   function renderClock() {
     const m=Math.floor(timerRemaining/60),s=timerRemaining%60;
     $("timer").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
@@ -197,7 +235,7 @@
     maybeRollover();
   }
   function exportBackup() {
-    const blob=new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),...state},null,2)],{type:"application/json"});
+    const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),...state},null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob),a=document.createElement("a");
     a.href=url;a.download="ascend-backup-"+today+".json";document.body.append(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),2000);toast("Backup downloaded.");
@@ -210,6 +248,18 @@
   document.querySelectorAll(".side-link").forEach(link=>link.addEventListener("click",()=>{
     document.querySelectorAll(".side-link").forEach(n=>n.classList.toggle("active",n===link));
   }));
+  $("wellness-form").addEventListener("submit",e=>{
+    e.preventDefault();
+    const mood=document.querySelector('input[name="wellness-mood"]:checked')?.value || "";
+    const sleepText=$("wellness-sleep").value.trim();
+    const sleep=sleepText===""?null:Number(sleepText);
+    const energy=$("wellness-energy").value;
+    const note=$("wellness-note").value.trim().slice(0,180);
+    if(sleep!==null && (!Number.isFinite(sleep) || sleep<0 || sleep>24)){toast("Please enter a sleep duration between 0 and 24 hours, or leave it blank.");return;}
+    if(!mood && sleep===null && !energy && !note){toast("Choose at least one thing to check in about.");return;}
+    state.wellness[today]={mood,sleep,energy,note};
+    persist();renderWellness();toast("Wellness check-in saved privately. No XP needed.");
+  });
   $("quest-form").addEventListener("submit",e=>{
     e.preventDefault();addQuest($("quest-title").value,$("quest-lane").value);$("quest-title").value="";
   });
