@@ -60,9 +60,31 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     if(text!==undefined)n.textContent=text;
     return n;
   };
-  function toast(text) {
-    const n=$("toast");n.textContent=text;n.classList.add("show");
-    clearTimeout(toastHandle);toastHandle=setTimeout(()=>n.classList.remove("show"),3200);
+  function toast(text,action=null) {
+    const n=$("toast");n.replaceChildren(document.createTextNode(text));n.classList.add("show");
+    if(action){
+      const button=element("button","toast-action",action.label);button.type="button";
+      button.addEventListener("click",()=>{clearTimeout(toastHandle);n.classList.remove("show");action.run();});n.append(button);
+    }
+    clearTimeout(toastHandle);toastHandle=setTimeout(()=>n.classList.remove("show"),action?6500:3200);
+  }
+  function reward(xp,previousXP) {
+    const levelUp=Math.floor(totalStats().xp/XP_LEVEL)>Math.floor(previousXP/XP_LEVEL);
+    const cleared=currentQuests().filter(q=>q.done).length===3;
+    toast(levelUp?"Level "+(Math.floor(totalStats().xp/XP_LEVEL)+1)+" reached · +"+xp+" XP":xp===XP_BOSS?"Weekly goal complete · +100 XP":cleared?"All three complete · +"+xp+" XP":"Quest complete · +"+xp+" XP");
+    if(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)return;
+    document.querySelector(".reward-burst")?.remove();
+    const burst=element("div","reward-burst");burst.setAttribute("aria-hidden","true");
+    burst.append(element("strong","reward-label",levelUp?"Level up!":"+"+xp+" XP"));
+    if(levelUp || cleared || xp===XP_BOSS){
+      for(let i=0;i<12;i++){
+        const piece=element("i","reward-piece");
+        const angle=i*Math.PI/6;
+        piece.style.setProperty("--x",Math.cos(angle)*100+"px");piece.style.setProperty("--y",Math.sin(angle)*70-24+"px");
+        piece.style.setProperty("--turn",i*47+"deg");burst.append(piece);
+      }
+    }
+    document.body.append(burst);setTimeout(()=>burst.remove(),1300);
   }
   function ask(message,{value=null,phrase=null,maxLength=160}={}) {
     return new Promise(resolve=>{
@@ -281,15 +303,30 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     const quests=currentQuests(),done=quests.filter(q=>q.done).length;
     $("today-chip").textContent=done+" / 3 done";
     $("quest-progress-fill").style.width=done/3*100+"%";
+    $("day-status").textContent=done===3?"All three complete. Day cleared.":done?done+" of 3 complete · "+done*XP_QUEST+" XP today":"Complete a quest to earn 25 XP.";
+    $("today").dataset.complete=String(done===3);
     if(!quests.length)host.append(element("div","empty","Add your first quest below."));
     quests.forEach(q=>{
       const row=element("div","quest"+(q.done?" done":""));
       const input=document.createElement("input");input.type="checkbox";input.checked=q.done;input.setAttribute("aria-label","Complete "+q.title);
-      input.addEventListener("change",()=>{q.done=input.checked;persist();render();toast(q.done?"Quest completed · 25 XP":"Quest marked unfinished");});
+      input.addEventListener("change",()=>{
+        const previousXP=totalStats().xp;q.done=input.checked;persist();render();
+        if(q.done)reward(XP_QUEST,previousXP);else toast("Quest marked unfinished");
+      });
       const main=element("div","quest-main");
       main.append(element("strong","",q.title),element("small","",LANES[q.lane].label+" · 25 XP"));
       const remove=element("button","delete-quest","×");remove.type="button";remove.setAttribute("aria-label","Remove "+q.title);
-      remove.addEventListener("click",()=>{state.days[today]=currentQuests().filter(item=>item.id!==q.id);persist();render();toast("Quest removed.");});
+      remove.addEventListener("click",()=>{
+        const day=today,index=currentQuests().findIndex(item=>item.id===q.id);
+        state.days[day]=currentQuests().filter(item=>item.id!==q.id);persist();render();
+        toast("Quest removed.",{label:"Undo",run:()=>{
+          if(!["local","online"].includes(sync.mode)){toast("Reconnect before undoing.");return;}
+          const quests=state.days[day] || [];
+          if(quests.length>=3){toast("Three quests already added. Remove one before restoring.");return;}
+          if(quests.some(item=>item.id===q.id))return;
+          quests.splice(index,0,q);state.days[day]=quests;persist();render();toast("Quest restored.");
+        }});
+      });
       const edit=element("button","edit-quest","Edit");edit.type="button";edit.setAttribute("aria-label","Edit "+q.title);
       edit.addEventListener("click",async()=>{
         const title=await ask("Update this quest without changing its completion.",{value:q.title,maxLength:120});
@@ -334,7 +371,10 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     });
     left.append(edit);
     const btn=element("button","boss-button"+(boss.done?" done":""),boss.done?"Completed":"Mark complete");
-    btn.addEventListener("click",()=>{boss.done=!boss.done;persist();render();toast(boss.done?"Weekly goal completed · 100 XP":"Weekly goal reopened.");});
+    btn.addEventListener("click",()=>{
+      const previousXP=totalStats().xp;boss.done=!boss.done;persist();render();
+      if(boss.done)reward(XP_BOSS,previousXP);else toast("Weekly goal reopened.");
+    });
     row.append(left,btn);host.append(row);
   }
   function renderVault() {
@@ -411,6 +451,7 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     const m=Math.floor(timerRemaining/60),s=timerRemaining%60;
     $("timer").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
     $("timer-toggle").textContent=timerRunning?"Pause":timerRemaining===0?"Restart":"Start";
+    $("focus").dataset.running=String(timerRunning);
     document.querySelectorAll(".preset").forEach(b=>{b.classList.toggle("selected",Number(b.dataset.minutes)===timerMinutes);b.disabled=timerRunning;});
   }
   function tick() {
@@ -440,7 +481,7 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     persist();render();toast(sync.mode==="online"?"Shared backup queued for sync.":"Backup restored.");
   }
   document.querySelectorAll(".side-link").forEach(link=>link.addEventListener("click",()=>{
-    document.querySelectorAll(".side-link").forEach(n=>n.classList.toggle("active",n===link));
+    document.querySelectorAll(".side-link").forEach(n=>{n.classList.toggle("active",n===link);n.setAttribute("aria-current",n===link?"location":"false");});
   }));
   $("wellness-form").addEventListener("input",()=>{wellnessDraft=true;});
   $("wellness-form").addEventListener("change",()=>{wellnessDraft=true;});

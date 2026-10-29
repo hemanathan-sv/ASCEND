@@ -15,11 +15,11 @@
   <aside class="side">
     <div class="logo"><div class="logo-mark" aria-hidden="true">A</div><div><strong>ASCEND</strong><small>Shared questboard</small></div></div>
     <nav class="side-nav" aria-label="Sections">
-      <a href="#today" class="side-link active">Quests</a>
-      <a href="#boss" class="side-link">This week</a>
-      <a href="#focus" class="side-link">Focus</a>
-      <a href="#wellness" class="side-link">Wellness</a>
-      <a href="#vault" class="side-link">Ideas</a>
+      <a href="#today" class="side-link active" aria-current="location"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>Quests</span></a>
+      <a href="#boss" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M5 4h13l-3 4 3 4H5"/></svg><span>This week</span></a>
+      <a href="#focus" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M9 2h6m-3 7v4l3 2"/></svg><span>Focus</span></a>
+      <a href="#wellness" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5c-3-3-6 0-8 2-2-2-5-5-8-2s0 7 8 14c8-7 11-11 8-14Z"/></svg><span>Wellness</span></a>
+      <a href="#vault" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6m-5 3h4M8 14a6 6 0 1 1 8 0l-1 2H9Z"/></svg><span>Ideas</span></a>
     </nav>
     <div class="side-bottom">
       <div class="privacy" id="privacy-label">Connecting…</div>
@@ -47,6 +47,7 @@
           <div class="card-head"><h2 id="today-title">Daily quests</h2><span class="chip" id="today-chip">0 / 3 done</span></div>
           <p class="subcopy">Up to three tasks. Give each one a clear finish.</p>
           <div class="quest-progress"><div id="quest-progress-fill"></div></div>
+          <p class="day-status" id="day-status">Complete a quest to earn 25 XP.</p>
           <div id="quest-list" class="quest-list"></div>
           <form id="quest-form" class="quest-form">
             <label class="field-label" for="quest-title">New quest</label>

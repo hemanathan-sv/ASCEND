@@ -86,6 +86,25 @@ test("quest add/edit/complete, XP, weekly boss, vault and wellness use real UI h
   await h.ids.get("wellness-form").fire("submit");await h.app.saveShared();
   assert.equal(saved.wellness[day][0].sleep,7.5);assert.deepEqual(saved.vault,["Later idea"]);assert.equal(h.app.sync.dirty,false);
 });
+test("completion feedback and Undo preserve earned XP without duplicating rewards",async()=>{
+  const h=await harness(async()=>{throw new Error("No API");},storage(),storage(),true);
+  h.context.window.matchMedia=()=>({matches:true});
+  for(const name of ["One","Two","Three"])h.app.addQuest(name,"build");
+  for(let i=0;i<3;i++){
+    const row=h.ids.get("quest-list").children[i];row.children[0].checked=true;await row.children[0].fire("change");
+  }
+  assert.equal(h.ids.get("total-xp").children[0].textContent,"75 ");
+  assert.equal(h.ids.get("day-status").textContent,"All three complete. Day cleared.");
+  assert.equal(h.context.document.body.children.length,0,"reduced motion skips decorative bursts");
+  await h.ids.get("quest-list").children[0].children[3].fire("click");
+  assert.equal(h.ids.get("total-xp").children[0].textContent,"50 ");
+  await h.ids.get("toast").children[1].fire("click");
+  assert.equal(h.ids.get("total-xp").children[0].textContent,"75 ");
+  const quests=h.app.state.days[h.app.localDate()];
+  assert.deepEqual(copy(quests.map(q=>q.title)),["One","Two","Three"]);
+  assert.equal(new Set(quests.map(q=>q.id)).size,3);
+});
+
 test("a second edit during PUT remains dirty and is saved with the returned ETag",async()=>{
   let release,write=0,bodies=[];
   const h=await harness(async(_u,o={})=>{
