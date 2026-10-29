@@ -558,6 +558,9 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   // A self-contained break game. It never reads or changes quest progress.
   const dot=$("game-dot"),gameStart=$("game-start"),board=$("dot-board");
   let gameEnd=0,gameScore=0,gameCell=0,gameLoop=null;
+  let gameBest=0;
+  try { const saved=Number(localStorage.getItem(KEY+"-dot-best"));if(Number.isSafeInteger(saved) && saved>=0)gameBest=saved; } catch {}
+  $("game-status").textContent="Best: "+gameBest+" · Press Play. Keyboard: Enter or Space catches the dot.";
   function moveDot(){
     gameCell=(gameCell+1+Math.floor(Math.random()*11))%12;
     dot.style.left=((gameCell%4+.5)*25)+"%";
@@ -567,7 +570,9 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     gameEnd=0;clearInterval(gameLoop);gameLoop=null;
     dot.hidden=true;dot.disabled=true;board.dataset.running="false";
     $("game-time").textContent="0";gameStart.disabled=false;gameStart.textContent="Play again";
-    $("game-status").textContent="Time! You caught "+gameScore+(gameScore===1?" dot.":" dots.")+" Another round?";
+    const record=gameScore>gameBest;
+    if(record){gameBest=gameScore;try{localStorage.setItem(KEY+"-dot-best",String(gameBest));}catch{}}
+    $("game-status").textContent="Time! You caught "+gameScore+(gameScore===1?" dot.":" dots.")+(record?" New personal best!":" Best: "+gameBest+".")+" Another round?";
     if(document.activeElement===dot)gameStart.focus({preventScroll:true});
   }
   function gameTick(){
@@ -580,7 +585,7 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     if(gameEnd)return;
     gameScore=0;gameEnd=Date.now()+20000;
     $("game-score").textContent="0";$("game-time").textContent="20";
-    $("game-status").textContent="Go! Catch the dot.";
+    $("game-status").textContent="Go! Catch the dot. Best: "+gameBest+".";
     gameStart.disabled=true;dot.disabled=false;dot.hidden=false;board.dataset.running="true";
     moveDot();dot.focus({preventScroll:true});gameLoop=setInterval(gameTick,100);
   });
