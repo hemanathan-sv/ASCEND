@@ -554,4 +554,40 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   render();renderClock();
   initializeSync();
   setInterval(refreshShared,15000);
+
+  // A self-contained break game. It never reads or changes quest progress.
+  const dot=$("game-dot"),gameStart=$("game-start"),board=$("dot-board");
+  let gameEnd=0,gameScore=0,gameCell=0,gameLoop=null;
+  function moveDot(){
+    gameCell=(gameCell+1+Math.floor(Math.random()*11))%12;
+    dot.style.left=((gameCell%4+.5)*25)+"%";
+    dot.style.top=((Math.floor(gameCell/4)+.5)*100/3)+"%";
+  }
+  function finishGame(){
+    gameEnd=0;clearInterval(gameLoop);gameLoop=null;
+    dot.hidden=true;dot.disabled=true;board.dataset.running="false";
+    $("game-time").textContent="0";gameStart.disabled=false;gameStart.textContent="Play again";
+    $("game-status").textContent="Time! You caught "+gameScore+(gameScore===1?" dot.":" dots.")+" Another round?";
+    if(document.activeElement===dot)gameStart.focus({preventScroll:true});
+  }
+  function gameTick(){
+    if(!gameEnd)return;
+    const remaining=Math.max(0,Math.ceil((gameEnd-Date.now())/1000));
+    $("game-time").textContent=String(remaining);
+    if(!remaining)finishGame();
+  }
+  gameStart.addEventListener("click",()=>{
+    if(gameEnd)return;
+    gameScore=0;gameEnd=Date.now()+20000;
+    $("game-score").textContent="0";$("game-time").textContent="20";
+    $("game-status").textContent="Go! Catch the dot.";
+    gameStart.disabled=true;dot.disabled=false;dot.hidden=false;board.dataset.running="true";
+    moveDot();dot.focus({preventScroll:true});gameLoop=setInterval(gameTick,100);
+  });
+  dot.addEventListener("click",()=>{
+    if(!gameEnd)return;
+    if(Date.now()>=gameEnd){finishGame();return;}
+    $("game-score").textContent=String(++gameScore);moveDot();
+  });
+  document.addEventListener("visibilitychange",gameTick);
 })();

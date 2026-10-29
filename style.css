@@ -255,6 +255,19 @@ footer .text-button { color: #b8a49c; font-size: 11px; }
 }
 
 /* Navigation and feedback stay lightweight, including on touch screens. */
+.game-jump { display: inline-block; color: var(--lime); font-size: 13px; margin-top: 18px; padding: 12px 0; text-underline-offset: 4px; }
+.game-toolbar { display: flex; align-items: center; gap: 20px; margin: 18px 0 12px; color: var(--muted); font-size: 13px; }
+.game-toolbar strong { color: var(--text); font-family: Consolas,monospace; font-size: 23px; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.game-toolbar button { margin-left: auto; min-height: 44px; }
+.dot-board { height: 220px; position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--side); display: grid; place-items: center; }
+.game-idle { color: var(--muted); font-size: 13px; }
+.dot-board[data-running=true] .game-idle { visibility: hidden; }
+.game-dot { position: absolute; width: 48px; height: 48px; min-height: 48px; padding: 0; border-radius: 50%; border: 0; background: var(--lime); box-shadow: 0 0 0 7px #b2c99815; transform: translate(-50%,-50%); touch-action: manipulation; }
+.game-dot[hidden] { display: none; }
+.game-dot:hover { background: #d2e6bb; }
+.game-dot:active { background: #e8f4db; }
+.game-status { min-height: 38px; color: var(--muted); font-size: 12px; line-height: 1.6; margin: 12px 0 0; }
+@media(max-width:360px) { .game-toolbar { gap: 10px; } .game-toolbar strong { font-size: 20px; } }
 .side-link { display: flex; align-items: center; gap: 10px; }
 .side-link svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 button, .side-link, .mood-option span { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }

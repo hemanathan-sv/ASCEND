@@ -53,7 +53,7 @@ async function harness(fetcher=async()=>response(),session=storage(),local=stora
   const prompts=[],confirms=[],context={
     document:doc,window:{addEventListener(){}},location:{protocol:"https:"},localStorage:local,sessionStorage:session,
     fetch:fetcher,AbortController,Date,JSON,Blob,URL,console,
-    setTimeout:()=>1,clearTimeout(){},setInterval(){},
+    setTimeout:()=>1,clearTimeout(){},setInterval(){},clearInterval(){},
     confirm:()=>confirms.shift()??false,prompt:()=>prompts.shift()??null,
     blank,validState,fromBackup,migrateState
   };
@@ -103,6 +103,25 @@ test("completion feedback and Undo preserve earned XP without duplicating reward
   const quests=h.app.state.days[h.app.localDate()];
   assert.deepEqual(copy(quests.map(q=>q.title)),["One","Two","Three"]);
   assert.equal(new Set(quests.map(q=>q.id)).size,3);
+});
+
+test("dot game moves per catch, stops at the deadline, replays and leaves quest progress unchanged",async()=>{
+  const h=await harness(async()=>{throw new Error("No API");},storage(),storage(),true);
+  let now=1000;h.context.Date=class extends Date{static now(){return now;}};
+  const before=copy(h.app.state),dot=h.ids.get("game-dot"),start=h.ids.get("game-start");
+  await start.fire("click");
+  const position=[dot.style.left,dot.style.top];
+  await dot.fire("click");
+  assert.equal(h.ids.get("game-score").textContent,"1");
+  assert.notDeepEqual([dot.style.left,dot.style.top],position);
+  now=21000;await dot.fire("click");
+  assert.equal(h.ids.get("game-score").textContent,"1","expired hits do not score");
+  assert.equal(h.ids.get("game-time").textContent,"0");assert.equal(dot.hidden,true);
+  assert.equal(start.disabled,false);assert.equal(start.textContent,"Play again");
+  await dot.fire("click");assert.equal(h.ids.get("game-score").textContent,"1");
+  now++;await start.fire("click");assert.equal(h.ids.get("game-score").textContent,"0");
+  assert.equal(dot.hidden,false);assert.equal(h.ids.get("game-time").textContent,"20");
+  assert.deepEqual(copy(h.app.state),before);
 });
 
 test("a second edit during PUT remains dirty and is saved with the returned ETag",async()=>{

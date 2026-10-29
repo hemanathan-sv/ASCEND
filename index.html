@@ -63,6 +63,17 @@
         <section class="card" id="focus" aria-labelledby="focus-title">
           <div class="card-head"><h2 id="focus-title">Focus timer</h2><span class="section-note">This device</span></div>
           <div class="focus-flex"><div><p class="subcopy">Choose a session length and start when you're ready.</p><div class="timer-presets"><button data-minutes="15" class="preset selected">15 min</button><button data-minutes="25" class="preset">25 min</button><button data-minutes="45" class="preset">45 min</button></div></div><div class="clock-area"><div class="timer" id="timer" role="timer" aria-label="Focus time remaining">15:00</div><div class="timer-actions"><button class="action-button" id="timer-toggle">Start</button><button class="text-button" id="timer-reset">Reset</button></div></div></div>
+          <a class="game-jump" href="#game">Play Catch the dot →</a>
+        </section>
+        <section class="card" id="game" aria-labelledby="game-title">
+          <div class="card-head"><h2 id="game-title">Catch the dot</h2><span class="section-note">Just for fun · No XP</span></div>
+          <p class="subcopy">Tap the dot. It moves. How many can you catch in 20 seconds?</p>
+          <div class="game-toolbar"><span>Score <strong id="game-score">0</strong></span><span><strong id="game-time">20</strong>s left</span><button class="action-button" id="game-start" type="button">Play</button></div>
+          <div class="dot-board" id="dot-board" data-running="false">
+            <span class="game-idle" aria-hidden="true">One dot. Twenty seconds.</span>
+            <button class="game-dot" id="game-dot" type="button" aria-label="Catch the dot" hidden></button>
+          </div>
+          <p class="game-status" id="game-status" role="status">Press Play to start. Keyboard: Enter or Space catches the dot.</p>
         </section>
         <section class="card archive-card" aria-labelledby="archive-title">
           <div class="card-head"><h2 id="archive-title">Recently completed</h2></div>
