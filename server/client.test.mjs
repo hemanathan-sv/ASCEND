@@ -22,6 +22,34 @@ class Element {
   click(){}
 }
 const response=(state=blank(),n=1)=>new Response(JSON.stringify({etag:etag(n),state,userId:"test-account",schemaVersion:3}));
+test("weekly review uses Monday boundaries and ISO goal year without changing records",async()=>{
+  const fixture=blank();
+  fixture.days["2020-12-28"]=[{id:"a",title:"Done",lane:"build",done:true},{id:"b",title:"Pending",lane:"mind",done:false}];
+  fixture.days["2021-01-03"]=[{id:"c",title:"Sunday",lane:"body",done:true}];
+  fixture.days["2021-01-04"]=[{id:"d",title:"Next week",lane:"build",done:true}];
+  fixture.bosses["2020-W53"]={title:"Ship",done:true};
+  const h=await harness(async()=>response(fixture));
+  const before=JSON.stringify(h.app.state),summary=h.app.reviewSummary(new Date(2021,0,1));
+  assert.equal(summary.days[0].key,"2020-12-28");assert.equal(summary.days[6].key,"2021-01-03");
+  assert.equal(summary.done,2);assert.equal(summary.planned,3);assert.equal(summary.active,2);assert.equal(summary.xp,150);
+  assert.equal(h.app.reviewSummary(new Date(2021,0,4)).xp,25);
+  assert.equal(h.app.reviewSummary(new Date(2020,11,21)).xp,0);
+  assert.equal(JSON.stringify(h.app.state),before);
+});
+test("weekly review navigation and day selection do not edit saved progress",async()=>{
+  const h=await harness();const before=JSON.stringify(h.app.state),range=h.ids.get("review-range").textContent;
+  assert.equal(h.ids.get("review-days").children.length,7);
+  assert.equal(h.ids.get("review-next").disabled,true);
+  await h.ids.get("review-prev").fire("click");
+  assert.notEqual(h.ids.get("review-range").textContent,range);assert.equal(h.ids.get("review-next").disabled,false);
+  await h.ids.get("review-days").children[2].fire("click");
+  assert.equal(h.ids.get("review-days").children[2]["aria-pressed"],"true");
+  assert.equal(h.ids.get("review-tasks").children[0].textContent,"No quests recorded for this day.");
+  await h.ids.get("review-current").fire("click");
+  assert.equal(h.ids.get("review-range").textContent,range);
+  await h.ids.get("review-next").fire("click");assert.equal(h.ids.get("review-range").textContent,range);
+  assert.equal(JSON.stringify(h.app.state),before);
+});
 async function harness(fetcher=async()=>response(),session=storage(),local=storage(),pages=false){
   const ids=new Map(),cards=Array.from({length:7},()=>new Element());
   const doc={
@@ -59,7 +87,7 @@ async function harness(fetcher=async()=>response(),session=storage(),local=stora
   };
   vm.createContext(context);
   const exposed=source.replace(/^import .*;\r?\n/,"").replace(/\}\)\(\);\s*$/,
-    'globalThis.app={get state(){return state;},sync,addQuest,saveShared,refreshShared,initializeSync,importBackup,render,exportBackup,isoWeek,localDate,tick};})();');
+    'globalThis.app={get state(){return state;},sync,addQuest,saveShared,refreshShared,initializeSync,importBackup,render,exportBackup,isoWeek,localDate,tick,reviewSummary};})();');
   vm.runInContext(exposed,context);
   await new Promise(resolve=>setImmediate(resolve));
   return {app:context.app,ids,context,prompts,confirms,session,local,cards};

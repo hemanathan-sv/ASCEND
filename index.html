@@ -20,6 +20,7 @@
       <a href="#focus" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M9 2h6m-3 7v4l3 2"/></svg><span>Focus</span></a>
       <a href="#wellness" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5c-3-3-6 0-8 2-2-2-5-5-8-2s0 7 8 14c8-7 11-11 8-14Z"/></svg><span>Wellness</span></a>
       <a href="#vault" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6m-5 3h4M8 14a6 6 0 1 1 8 0l-1 2H9Z"/></svg><span>Ideas</span></a>
+      <a href="#review" class="side-link"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5m5 5V4m5 12V8"/></svg><span>Review</span></a>
     </nav>
     <div class="side-bottom">
       <div class="privacy" id="privacy-label">Connecting…</div>
@@ -117,6 +118,15 @@
         </section>
       </div>
     </div>
+    <section class="card weekly-review" id="review" aria-labelledby="review-title">
+      <div class="card-head"><div><h2 id="review-title">Weekly review</h2><p class="subcopy">See what you finished, one week at a time.</p></div><button class="text-button" id="review-current" type="button">Current week</button></div>
+      <div class="review-navigation"><button class="boss-button" id="review-prev" type="button" aria-label="Previous review week">← Previous</button><h3 id="review-range" aria-live="polite"></h3><button class="boss-button" id="review-next" type="button" aria-label="Next review week">Next →</button></div>
+      <div class="review-totals" id="review-totals"></div>
+      <p class="review-caption">Completed quests by day. Select a day to see its tasks.</p>
+      <div class="review-days" id="review-days" aria-label="Days in the selected week"></div>
+      <div class="review-detail"><div><h3 id="review-day-title"></h3><ul id="review-tasks" class="review-tasks"></ul></div><div class="review-goal" id="review-goal"></div></div>
+      <p class="review-caption">Based on saved quest dates and goal weeks. Reopening or removing a task updates these totals.</p>
+    </section>
     <footer><span>ASCEND · Shared progress</span><button class="text-button" id="reset-data">Reset shared data</button></footer>
   </main>
 </div>

@@ -446,7 +446,54 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
       row.append(element("div","check","✓"),text);host.append(row);
     });
   }
-  function render() { renderStats();renderQuests();renderBoss();renderWellness();renderVault();renderWins(); }
+  let reviewOffset=0,reviewSelected=null;
+  function reviewSummary(anchor){
+    const start=new Date(anchor);start.setHours(12,0,0,0);start.setDate(start.getDate()-(start.getDay()+6)%7);
+    const days=Array.from({length:7},(_,i)=>{
+      const date=new Date(start);date.setDate(date.getDate()+i);
+      const key=localDate(date),quests=state.days[key] || [];
+      return {date,key,quests,done:quests.filter(q=>q.done).length};
+    });
+    const goal=state.bosses[isoWeek(start)] || null;
+    const done=days.reduce((n,d)=>n+d.done,0),planned=days.reduce((n,d)=>n+d.quests.length,0);
+    return {days,goal,done,planned,active:days.filter(d=>d.done>0).length,xp:done*XP_QUEST+(goal?.done?XP_BOSS:0)};
+  }
+  function renderReview(){
+    const anchor=new Date();anchor.setDate(anchor.getDate()+reviewOffset*7);
+    const summary=reviewSummary(anchor),{days,goal}=summary;
+    if(!days.some(d=>d.key===reviewSelected))reviewSelected=reviewOffset===0?today:days[0].key;
+    const format=d=>d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+    $("review-range").textContent=format(days[0].date)+" – "+format(days[6].date);
+    $("review-next").disabled=reviewOffset===0;$("review-current").disabled=reviewOffset===0;
+    const totals=$("review-totals");totals.replaceChildren();
+    for(const [label,value] of [["Quests completed",summary.done+" / "+summary.planned],["XP earned",summary.xp],["Days with a completion",summary.active+" / 7"]]){
+      const item=element("div");item.append(element("span","",label),element("strong","",String(value)));totals.append(item);
+    }
+    const chart=$("review-days");chart.replaceChildren();
+    for(const day of days){
+      const button=element("button","review-day"+(day.key===reviewSelected?" selected":""));button.type="button";
+      button.setAttribute("aria-pressed",String(day.key===reviewSelected));
+      button.setAttribute("aria-label",format(day.date)+": "+day.done+" of "+day.quests.length+" quests completed");
+      const track=element("span","review-track"),bar=element("span","review-bar");bar.style.height=day.done/3*100+"%";track.append(bar);track.setAttribute("aria-hidden","true");
+      button.append(element("strong","",String(day.done)),track,element("span","",day.date.toLocaleDateString(undefined,{weekday:"short"})),element("small","",String(day.date.getDate())));
+      button.addEventListener("click",()=>{reviewSelected=day.key;renderReview();const buttons=$("review-days").children;buttons[days.indexOf(day)]?.focus({preventScroll:true});});chart.append(button);
+    }
+    const selected=days.find(d=>d.key===reviewSelected) || days[0];
+    $("review-day-title").textContent=format(selected.date);
+    const tasks=$("review-tasks");tasks.replaceChildren();
+    if(!selected.quests.length)tasks.append(element("li","review-empty",selected.key>today?"No tasks recorded for this date.":"No quests recorded for this day."));
+    for(const q of selected.quests){
+      const li=element("li",q.done?"review-finished":"");
+      li.append(element("span","",q.title),element("small","",(q.done?"Completed · 25 XP":"Not completed")+" · "+LANES[q.lane].label));tasks.append(li);
+    }
+    const goalHost=$("review-goal");goalHost.replaceChildren(element("h3","","Weekly goal"));
+    goalHost.append(element("p","",goal?.title || "No weekly goal recorded."));
+    if(goal)goalHost.append(element("span",goal.done?"review-goal-done":"review-caption",goal.done?"Completed · 100 XP":"Not completed · 0 XP"));
+  }
+  $("review-prev").addEventListener("click",()=>{reviewOffset--;reviewSelected=null;renderReview();});
+  $("review-next").addEventListener("click",()=>{if(reviewOffset<0){reviewOffset++;reviewSelected=null;renderReview();}});
+  $("review-current").addEventListener("click",()=>{reviewOffset=0;reviewSelected=null;renderReview();});
+  function render() { renderStats();renderQuests();renderBoss();renderWellness();renderVault();renderWins();renderReview(); }
   function renderClock() {
     const m=Math.floor(timerRemaining/60),s=timerRemaining%60;
     $("timer").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");

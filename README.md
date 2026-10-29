@@ -24,6 +24,7 @@ The app checks for remote changes every 15 seconds and when returning to the tab
 - Set one weekly win condition; completing it earns 100 XP. Editing a completed objective marks it unfinished.
 - Levels use 150 XP. Skill XP and recent wins derive from completed records, so toggling a task cannot double-count rewards.
 - Run a 15, 25 or 45 minute focus sprint. Timer use earns no XP.
+- Open Review to browse seven-day summaries, inspect each day's quests, and see the weekly goal result. Totals use recorded task dates and update when tasks are reopened or removed.
 - Optionally save mood, sleep, energy and a short note; both invited people can read them.
 - Export JSON backups. Import and reset require an in-page typed-phrase confirmation that both people's shared profile will be replaced. Invalid backups are rejected without truncating data.
 

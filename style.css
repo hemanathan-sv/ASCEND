@@ -363,3 +363,34 @@ button, .side-link, .mood-option span { -webkit-tap-highlight-color: transparent
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
   .reward-burst { display: none; }
 }
+.weekly-review { margin-top: 24px; }
+.review-navigation { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:20px 0; }
+.review-navigation h3 { font-size:14px; text-align:center; }
+.review-totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; padding:18px 0; border-block:1px solid #343830; }
+.review-totals span { display:block; color:#a4aa9e; font-size:12px; }
+.review-totals strong { display:block; font-size:26px; margin-top:7px; }
+.review-caption { color:#a4aa9e; font-size:12px; line-height:1.6; }
+.review-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; margin:18px 0 24px; }
+.review-day { display:flex; flex-direction:column; align-items:center; gap:7px; padding:12px 4px; background:transparent; color:inherit; border:1px solid transparent; border-radius:6px; cursor:pointer; }
+.review-day:hover,.review-day.selected { background:#22271f; border-color:#637259; }
+.review-day:focus-visible { outline:2px solid #b2c998; outline-offset:2px; }
+.review-track { display:flex; align-items:flex-end; height:86px; width:22px; background:#292e25; border-radius:3px; overflow:hidden; }
+.review-bar { display:block; width:100%; background:#b2c998; min-height:2px; }
+.review-day small { color:#a4aa9e; }
+.review-detail { display:grid; grid-template-columns:2fr 1fr; gap:30px; border-top:1px solid #343830; padding-top:18px; }
+.review-detail h3 { font-size:14px; margin:0 0 12px; }
+.review-tasks { list-style:none; padding:0; margin:0; }
+.review-tasks li { padding:10px 0; overflow-wrap:anywhere; }
+.review-tasks small { display:block; margin-top:5px; color:#a4aa9e; }
+.review-finished small,.review-goal-done { color:#b2c998; }
+.review-goal p { overflow-wrap:anywhere; line-height:1.6; }
+.review-empty { color:#a4aa9e; font-size:13px; }
+@media(max-width:660px) {
+  .side-nav { grid-template-columns:repeat(6,minmax(0,1fr)); }
+  .review-navigation { flex-wrap:wrap; }
+  .review-navigation h3 { order:-1; flex-basis:100%; margin:0; }
+  .review-totals { gap:10px; }
+  .review-totals strong { font-size:22px; }
+  .review-days { gap:2px; }
+  .review-detail { grid-template-columns:1fr; gap:22px; }
+}
