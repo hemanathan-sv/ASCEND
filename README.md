@@ -14,6 +14,7 @@ For consistent local storage behavior, you can also serve this folder using a ba
 - Mark a quest done **only when there is real evidence**. Each gives 25 XP.
 - Set a **weekly boss**—one deliverable you can demonstrate. Defeating it gives 100 XP.
 - Use a **15, 25, or 45 minute focus sprint** when you're finding it hard to start. Timer use itself earns no XP.
+- Use the **optional wellness check-in** to reflect on mood, sleep, energy, or what might help. There are no sleep targets and no XP tied to how you feel.
 - Park tempting side projects in the **idea vault**.
 - Export a JSON backup occasionally and import it to restore progress.
 
@@ -21,11 +22,11 @@ No streak penalties or guilt prompts. A missed day is a normal part of life.
 
 ## Data and privacy
 
-Everything lives in your browser's localStorage under the key ascend-questboard-v1. There is no tracking, account, cloud sync, or API key. Clearing browser storage can remove your progress; export a backup first.
+Everything, including wellness check-ins, lives in your browser's localStorage under the key ascend-questboard-v1. There is no tracking, account, cloud sync, or API key. Clearing browser storage can remove your progress; export a backup first. Wellness check-ins are optional self-reflections, not medical assessments.
 
 ## Technical checks
 
 - Run node --check app.js to verify JavaScript syntax.
-- Manual acceptance tests to perform in a browser: add three quests, reject a fourth, complete/uncomplete a quest, set and defeat a boss, start/pause/reset the timer, add/remove an idea, export/import, reload, and test a narrow mobile viewport.
+- Manual acceptance tests to perform in a browser: add three quests, reject a fourth, complete/uncomplete a quest, set and defeat a boss, start/pause/reset the timer, add/remove an idea, record/update a wellness check-in, inspect the 7-day wellness history, export/import, reload, and test a narrow mobile viewport.
 
 This is an original prototype and has not been verified in a live browser session in the current environment.
