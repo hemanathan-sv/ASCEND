@@ -31,18 +31,37 @@ export function validState(s) {
   }
   for (const [week, b] of Object.entries(s.bosses))
     if (!weekKey(week) || !keys(b, ["title","done"]) || !text(b.title,160) || typeof b.done !== "boolean") return false;
-  for (const [date, e] of Object.entries(s.wellness)) {
-    if (!dateKey(date) || !keys(e, ["mood","sleep","energy","note"]) ||
-        !["","rough","low","okay","good","great"].includes(e.mood) ||
-        !(e.sleep === null || (typeof e.sleep === "number" && Number.isFinite(e.sleep) && e.sleep >= 0 && e.sleep <= 24)) ||
-        !["","low","okay","high"].includes(e.energy) || typeof e.note !== "string" || e.note.length > 180) return false;
+  const authors=new Set();
+  for (const [date, records] of Object.entries(s.wellness)) {
+    if(!dateKey(date) || !Array.isArray(records) || records.length>3 || records.length===0)return false;
+    const seen=new Set();
+    for(const e of records){
+      if(!keys(e,["authorId","mood","sleep","energy","note"]) ||
+          !(e.authorId===null || validAuthor(e.authorId)) || seen.has(e.authorId) ||
+          !["","rough","low","okay","good","great"].includes(e.mood) ||
+          !(e.sleep===null || (typeof e.sleep==="number" && Number.isFinite(e.sleep) && e.sleep>=0 && e.sleep<=24)) ||
+          !["","low","okay","high"].includes(e.energy) || typeof e.note!=="string" || e.note.length>180)return false;
+      seen.add(e.authorId);if(e.authorId!==null)authors.add(e.authorId);
+    }
   }
+  if(authors.size>2)return false;
   return true;
+}
+export const validAuthor = id => typeof id==="string" && /^[A-Za-z0-9:_-]{1,160}$/.test(id);
+export function migrateState(raw) {
+  if(!object(raw) || !object(raw.wellness))throw new Error("Invalid shared state");
+  const wellness={};
+  for(const [date,entry] of Object.entries(raw.wellness)){
+    // Existing records have no reliable author. Preserve them without assigning one.
+    wellness[date]=Array.isArray(entry)?entry:[{...entry,authorId:null}];
+  }
+  const candidate={...raw,wellness};
+  if(!validState(candidate))throw new Error("Invalid shared state");
+  return candidate;
 }
 export function fromBackup(raw) {
   if (!object(raw) || Object.keys(raw).some(k => !["days","bosses","wellness","vault","version","exportedAt"].includes(k)) ||
-      (raw.version !== undefined && ![1,2].includes(raw.version))) throw new Error("Invalid backup format");
+      (raw.version !== undefined && ![1,2,3].includes(raw.version))) throw new Error("Invalid backup format");
   const candidate = { days:raw.days, bosses:raw.bosses, wellness:raw.wellness ?? {}, vault:raw.vault };
-  if (!validState(candidate)) throw new Error("Invalid backup data");
-  return candidate;
+  return migrateState(candidate);
 }

@@ -1,4 +1,4 @@
-import { validState, blank, fromBackup } from "./state.mjs";
+import { validState, blank, fromBackup, migrateState } from "./state.mjs";
 (() => {
   "use strict";
   const KEY = "ascend-questboard-v1";
@@ -28,16 +28,16 @@ import { validState, blank, fromBackup } from "./state.mjs";
     catch { return blank(); }
   }
   const DRAFT_KEY = KEY + "-pending-shared";
-  let state=blank(), today=localDate(), week=isoWeek(), wellnessDraft=false;
-  const sync={mode:"checking",etag:null,saving:false,dirty:false,timer:null,revision:0,refreshing:false};
+  let state=blank(), today=localDate(), week=isoWeek(), wellnessDraft=false, userId="local-browser";
+  const sync={mode:"checking",etag:null,saving:false,dirty:false,timer:null,revision:0,refreshing:false,operation:"update",confirmation:null};
   function readDraft() {
     try {
       const draft=JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null");
-      return draft && validState(draft.state) && (draft.etag===null || /^[a-f0-9]{32}$/.test(draft.etag)) ? draft : null;
+      return draft && validState(migrateState(draft.state)) && (draft.etag===null || /^[a-f0-9]{32}$/.test(draft.etag)) ? {...draft,state:migrateState(draft.state)} : null;
     } catch { return null; }
   }
   function retainDraft() {
-    try { sessionStorage.setItem(DRAFT_KEY,JSON.stringify({etag:sync.etag,state})); }
+    try { sessionStorage.setItem(DRAFT_KEY,JSON.stringify({etag:sync.etag,state,operation:sync.operation,confirmation:sync.confirmation})); }
     catch { toast("This browser cannot keep an unsaved draft. Keep this tab open or export a backup."); }
   }
   function clearDraft() { try { sessionStorage.removeItem(DRAFT_KEY); } catch {} }
@@ -45,7 +45,7 @@ import { validState, blank, fromBackup } from "./state.mjs";
     document.querySelectorAll(".card").forEach(card=>{if(card.id!=="focus")card.inert=!value;});
   }
   function validPayload(p) {
-    return p && Object.hasOwn(p,"etag") && (p.etag===null || (typeof p.etag==="string" && /^[a-f0-9]{32}$/.test(p.etag))) && validState(p.state);
+    return p && Object.hasOwn(p,"etag") && (p.etag===null || (typeof p.etag==="string" && /^[a-f0-9]{32}$/.test(p.etag))) && validState(p.state) && p.schemaVersion===3 && typeof p.userId==="string";
   }
   async function requestShared(options={}) {
     const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),12000);
@@ -63,6 +63,34 @@ import { validState, blank, fromBackup } from "./state.mjs";
   function toast(text) {
     const n=$("toast");n.textContent=text;n.classList.add("show");
     clearTimeout(toastHandle);toastHandle=setTimeout(()=>n.classList.remove("show"),3200);
+  }
+  function ask(message,{value=null,phrase=null,maxLength=160}={}) {
+    return new Promise(resolve=>{
+      const dialog=element("dialog","action-dialog"),form=element("form");
+      const heading=element("h2","",value!==null?"Edit objective":"Confirm shared action");
+      heading.id="action-dialog-title";dialog.setAttribute("aria-labelledby",heading.id);
+      const description=element("p","",message),row=element("div","dialog-actions");
+      let input;
+      if(value!==null || phrase){
+        const label=element("label","field-label",phrase?"TYPE "+phrase:"OBJECTIVE");
+        input=element("input");input.value=value || "";input.maxLength=phrase?80:maxLength;input.required=true;
+        input.id="action-dialog-input";label.htmlFor=input.id;form.append(heading,description,label,input);
+      }else form.append(heading,description);
+      const cancel=element("button","text-button","Cancel");cancel.type="button";
+      const accept=element("button","action-button",value!==null?"Save changes":"Confirm");accept.type="submit";
+      const error=element("p","dialog-error","");error.setAttribute("role","alert");
+      row.append(cancel,accept);form.append(error,row);dialog.append(form);document.body.append(dialog);
+      let result=null;
+      cancel.addEventListener("click",()=>dialog.close());
+      form.addEventListener("submit",e=>{
+        e.preventDefault();
+        if(phrase && input.value!==phrase){error.textContent="Type the exact confirmation phrase.";return;}
+        if(value!==null && !input.value.trim())return;
+        result=value!==null?input.value.trim():true;dialog.close();
+      });
+      dialog.addEventListener("close",()=>{dialog.remove();resolve(result);},{once:true});
+      dialog.showModal();input?.focus();
+    });
   }
   function persist() {
     sync.revision++;
@@ -88,8 +116,8 @@ import { validState, blank, fromBackup } from "./state.mjs";
     }
     if(mode==="conflict"){
       const latest=element("button","","Load latest shared profile");latest.type="button";
-      latest.addEventListener("click",()=>{
-        if(!confirm("Discard this tab's unsaved changes and load the latest shared profile? Export your unsaved backup first."))return;
+      latest.addEventListener("click",async()=>{
+        if(!await ask("Discard this tab's unsaved changes and load the latest shared profile? Export your unsaved backup first.",{phrase:"DISCARD DRAFT"}))return;
         sync.dirty=false;clearDraft();wellnessDraft=false;initializeSync();
       });banner.append(latest);
     } else if(retry) {
@@ -109,12 +137,12 @@ import { validState, blank, fromBackup } from "./state.mjs";
     if(sync.mode!=="online" || sync.saving || !sync.dirty)return;
     if(!validState(state)){sync.mode="error";editable(false);syncBanner("Data exceeds the supported backup limits. Export a backup for recovery.",sync.mode);return;}
     sync.saving=true;
-    const revision=sync.revision,snapshot=JSON.stringify(state);
+    const revision=sync.revision,snapshot=JSON.stringify(state),operation=sync.operation,confirmation=sync.confirmation;
     syncBanner("Saving shared progress…");
     try {
       const response=await requestShared({
         method:"PUT",headers:{"content-type":"application/json"},
-        body:JSON.stringify({etag:sync.etag,state:JSON.parse(snapshot)})
+        body:JSON.stringify({etag:sync.etag,state:JSON.parse(snapshot),...(operation!=="update"?{operation,confirmation}:{})})
       });
       if(response.status===409) {
         // A timed-out request may already have committed. Recognize that safely.
@@ -130,6 +158,7 @@ import { validState, blank, fromBackup } from "./state.mjs";
         if(typeof result.etag!=="string" || !/^[a-f0-9]{32}$/.test(result.etag))throw new Error("Invalid response");
         sync.etag=result.etag;
       }
+      if(sync.operation===operation){sync.operation="update";sync.confirmation=null;}
       sync.dirty=sync.revision!==revision;
       if(sync.dirty)retainDraft();else clearDraft();
       syncBanner(sync.dirty?"Saving remaining changes…":"✓ Synced securely · Shared with authorized visitors");
@@ -156,20 +185,21 @@ import { validState, blank, fromBackup } from "./state.mjs";
       const payload=await response.json();
       if(!validPayload(payload))throw new Error("Invalid shared profile");
       const draft=readDraft(), localState=read();
+      userId=payload.userId;
       sync.etag=payload.etag;sync.mode="online";
       if(draft && JSON.stringify(draft.state)!==JSON.stringify(payload.state)) {
-        state=draft.state;sync.dirty=true;render();
+        state=draft.state;sync.operation=draft.operation || "update";sync.confirmation=draft.confirmation;sync.dirty=true;render();
         if(draft.etag!==payload.etag){
           sync.etag=draft.etag;sync.mode="conflict";editable(false);
           syncBanner("A draft from this tab conflicts with newer shared progress. Export it, then load the latest profile.",sync.mode);return;
         }
         editable(true);scheduleSave();syncBanner("Recovered this tab's unsaved changes. Retrying secure sync…");return;
       }
-      clearDraft();sync.dirty=false;state=payload.state;render();editable(true);
+      clearDraft();sync.dirty=false;sync.operation="update";sync.confirmation=null;state=payload.state;render();editable(true);
       syncBanner("✓ Connected · Private shared progress is up to date");
       if(payload.etag===null && hasProgress(localState) &&
-          confirm("Upload this browser's existing ASCEND progress, including wellness, to the shared profile for both authorized people?")) {
-        state=localState;render();persist();
+          await ask("Upload this browser's existing ASCEND progress, including wellness, to the shared profile for both authorized people? Older entries remain unattributed.")) {
+        state=localState;sync.operation="restore";sync.confirmation="REPLACE SHARED PROFILE";render();persist();
       }
     } catch {
       const draft=readDraft();if(draft){state=draft.state;sync.etag=draft.etag;sync.dirty=true;render();}
@@ -179,7 +209,7 @@ import { validState, blank, fromBackup } from "./state.mjs";
   }
   async function refreshShared() {
     if(sync.mode!=="online" || sync.saving || sync.dirty || sync.refreshing || document.hidden || wellnessDraft ||
-        document.activeElement?.matches("input, textarea, select"))return;
+        document.querySelector("dialog[open]") || document.activeElement?.matches("input, textarea, select"))return;
     const revision=sync.revision;sync.refreshing=true;
     try {
       const response=await requestShared();
@@ -187,8 +217,9 @@ import { validState, blank, fromBackup } from "./state.mjs";
       const payload=await response.json();
       if(!validPayload(payload))throw new Error("Invalid shared profile");
       // Edits or a save made while GET was in flight always win locally.
+      if(payload.userId!==userId){sync.mode="error";editable(false);syncBanner("The signed-in account changed. Reload before editing.",sync.mode,true);return;}
       if(sync.revision!==revision || sync.dirty || sync.saving || sync.mode!=="online" || wellnessDraft ||
-          document.activeElement?.matches("input, textarea, select"))return;
+          document.querySelector("dialog[open]") || document.activeElement?.matches("input, textarea, select"))return;
       if(payload.etag!==sync.etag){
         state=payload.state;sync.etag=payload.etag;render();syncBanner("✓ Updated with progress from the other browser");
       }
@@ -254,8 +285,8 @@ import { validState, blank, fromBackup } from "./state.mjs";
       const remove=element("button","delete-quest","×");remove.type="button";remove.setAttribute("aria-label","Remove "+q.title);
       remove.addEventListener("click",()=>{state.days[today]=currentQuests().filter(item=>item.id!==q.id);persist();render();toast("Quest removed.");});
       const edit=element("button","edit-quest","Edit");edit.type="button";edit.setAttribute("aria-label","Edit "+q.title);
-      edit.addEventListener("click",()=>{
-        const title=prompt("Edit this quest:",q.title);
+      edit.addEventListener("click",async()=>{
+        const title=await ask("Update this quest without changing its completion.",{value:q.title,maxLength:120});
         if(title===null || !title.trim())return;
         q.title=title.trim().slice(0,120);persist();render();
       });
@@ -289,8 +320,8 @@ import { validState, blank, fromBackup } from "./state.mjs";
     const row=element("div","boss-active");
     const left=element("div");left.append(element("small","",week+" · WEEKLY WIN CONDITION"),element("strong","",boss.title));
     const edit=element("button","edit-boss","Edit objective");
-    edit.addEventListener("click",()=>{
-      const next=prompt("Edit this week's win condition:",boss.title);
+    edit.addEventListener("click",async()=>{
+      const next=await ask("Editing a completed weekly objective marks it unfinished.",{value:boss.title});
       if(next===null)return;
       if(!next.trim())return;
       boss.title=next.trim().slice(0,160);boss.done=false;persist();render();
@@ -313,29 +344,41 @@ import { validState, blank, fromBackup } from "./state.mjs";
   const moods={rough:"😞",low:"😕",okay:"😐",good:"🙂",great:"😄"};
   function renderWellness() {
     if(wellnessDraft)return;
-    const entry=state.wellness[today] || null;
+    const entry=(state.wellness[today] || []).find(e=>e.authorId===userId) || null;
     document.querySelectorAll('input[name="wellness-mood"]').forEach(input=>{
       input.checked=!!entry && input.value===entry.mood;
     });
     $("wellness-sleep").value=entry && entry.sleep!==null?String(entry.sleep):"";
     $("wellness-energy").value=entry?.energy || "";
     $("wellness-note").value=entry?.note || "";
-    $("wellness-status").textContent=entry?"Today's check-in is saved. You can update it.":"Nothing recorded today.";
+    $("wellness-status").textContent=entry?"Your check-in is recorded. Check the sync status for save confirmation.":"You have not recorded a check-in today.";
 
     const host=$("wellness-days");host.replaceChildren();
     let count=0;
     for(let i=6;i>=0;i--){
       const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()-i);
-      const key=localDate(date),log=state.wellness[key],day=element("div","wellness-day"+(log?" recorded":" missing"));
+      const key=localDate(date),logs=state.wellness[key] || [],day=element("div","wellness-day"+(logs.length?" recorded":" missing"));
       day.append(element("strong","",date.toLocaleDateString(undefined,{weekday:"short"})));
-      day.append(element("span","mood-face",log?(moods[log.mood] || "♡"):"·"));
-      day.append(element("small","",log?(log.sleep!==null?log.sleep+"h sleep":(log.energy?log.energy+" energy":"Noted")):"—"));
-      const detail=log?[log.mood?"Mood: "+log.mood:"",log.sleep!==null?"Sleep: "+log.sleep+" hours":"",log.energy?"Energy: "+log.energy:"",log.note].filter(Boolean).join(" · "):"No check-in";
-      day.setAttribute("aria-label",date.toDateString()+": "+detail);
-      if(log)count++;
+      for(const log of logs){
+        const who=log.authorId===null?"Earlier entry · author unknown":log.authorId===userId?"You":"Other person";
+        day.append(element("span","mood-face",moods[log.mood] || "♡"),element("small","",who));
+        day.append(element("small","",log.sleep!==null?log.sleep+"h sleep":log.energy?log.energy+" energy":"Noted"));
+        if(log.note)day.append(element("span","wellness-history-note",log.note));
+        if(log.mood)day.append(element("small","","Mood: "+log.mood));
+        if(log.energy)day.append(element("small","","Energy: "+log.energy));
+        count++;
+      }
+      if(!logs.length)day.append(element("span","mood-face","·"),element("small","","No check-in"));
+      day.setAttribute("aria-label",date.toDateString()+": "+logs.length+" check-ins");
       host.append(day);
     }
-    $("wellness-count").textContent=count+" / 7 CHECK-INS";
+    $("wellness-count").textContent=count+" SHARED CHECK-INS";
+  }
+  function weekStart(key) {
+    const year=Number(key.slice(0,4)),weekNumber=Number(key.slice(6));
+    const d=new Date(Date.UTC(year,0,4));
+    d.setUTCDate(d.getUTCDate()-(d.getUTCDay() || 7)+1+(weekNumber-1)*7);
+    return d.toISOString().slice(0,10);
   }
   function renderWins() {
     const host=$("recent-wins");host.replaceChildren();
@@ -343,8 +386,8 @@ import { validState, blank, fromBackup } from "./state.mjs";
     for(const [date,quests] of Object.entries(state.days))for(const q of quests)
       if(q.done)entries.push({date,title:q.title,sub:LANES[q.lane].label+" · +25 XP"});
     for(const [date,boss] of Object.entries(state.bosses))
-      if(boss.done)entries.push({date,title:boss.title,sub:"WEEKLY BOSS · +100 XP"});
-    entries.sort((a,b)=>b.date.localeCompare(a.date));
+      if(boss.done)entries.push({date,title:boss.title,sortDate:weekStart(date),sub:"WEEKLY BOSS · +100 XP"});
+    entries.sort((a,b)=>(b.sortDate || b.date).localeCompare(a.sortDate || a.date));
     if(!entries.length){host.append(element("div","empty","Your proof of progress appears here after the first finished quest."));return;}
     entries.slice(0,6).forEach(item=>{
       const row=element("div","win-row");const text=element("div");
@@ -368,18 +411,20 @@ import { validState, blank, fromBackup } from "./state.mjs";
     maybeRollover();
   }
   function exportBackup() {
-    const blob=new Blob([JSON.stringify({version:2,exportedAt:new Date().toISOString(),...state},null,2)],{type:"application/json"});
+    const blob=new Blob([JSON.stringify({version:3,exportedAt:new Date().toISOString(),...state},null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob),a=document.createElement("a");
     a.href=url;a.download="ascend-backup-"+today+".json";document.body.append(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),2000);toast("Backup downloaded.");
   }
-  function importBackup(raw) {
+  async function importBackup(raw) {
     if(sync.mode==="checking" || sync.mode==="error" || sync.mode==="conflict") {
       toast("Reconnect shared sync before importing. You can still export a backup.");
       return;
     }
     const imported=fromBackup(raw);
-    if(!confirm(sync.mode==="online"?"Replace shared ASCEND progress for both people with this backup?":"Replace progress in this browser with the imported backup?"))return;
+    if(sync.saving){toast("Wait for the current save before importing.");return;}
+    if(!await ask(sync.mode==="online"?"Replace shared ASCEND progress for both people with this backup?":"Replace progress in this browser with the imported backup?",{phrase:"REPLACE SHARED PROFILE"}))return;
+    sync.operation="restore";sync.confirmation="REPLACE SHARED PROFILE";
     state=imported;wellnessDraft=false;
     persist();render();toast(sync.mode==="online"?"Shared backup queued for sync.":"Backup restored.");
   }
@@ -397,7 +442,9 @@ import { validState, blank, fromBackup } from "./state.mjs";
     const note=$("wellness-note").value.trim().slice(0,180);
     if(sleep!==null && (!Number.isFinite(sleep) || sleep<0 || sleep>24)){toast("Please enter a sleep duration between 0 and 24 hours, or leave it blank.");return;}
     if(!mood && sleep===null && !energy && !note){toast("Choose at least one thing to check in about.");return;}
-    wellnessDraft=false;state.wellness[today]={mood,sleep,energy,note};
+    wellnessDraft=false;
+    const records=state.wellness[today] || [];
+    state.wellness[today]=[...records.filter(e=>e.authorId!==userId),{authorId:userId,mood,sleep,energy,note}];
     persist();renderWellness();toast(sync.mode==="online"?"Wellness queued for shared sync. No XP needed.":"Wellness saved in this browser. No XP needed.");
   });
   $("quest-form").addEventListener("submit",e=>{
@@ -429,16 +476,18 @@ import { validState, blank, fromBackup } from "./state.mjs";
   $("import-file").addEventListener("change",async e=>{
     const f=e.target.files?.[0];e.target.value="";if(!f)return;
     if(f.size>2_000_000){toast("Backup must be under 2 MB.");return;}
-    try{importBackup(JSON.parse(await f.text()));}catch{toast("That backup could not be imported.");}
+    try{await importBackup(JSON.parse(await f.text()));}catch{toast("That backup could not be imported.");}
   });
-  $("reset-data").addEventListener("click",()=>{
+  $("reset-data").addEventListener("click",async()=>{
     if(sync.mode==="checking" || sync.mode==="error" || sync.mode==="conflict") {
       toast("Reconnect shared sync before resetting data.");
       return;
     }
-    if(!confirm(sync.mode==="online"?
+    if(sync.saving){toast("Wait for the current save before resetting.");return;}
+    if(!await ask(sync.mode==="online"?
       "Reset EVERYTHING for both authorized users, including shared wellness? Export a backup first.":
-      "Delete all local ASCEND quests, XP, wellness, wins, and ideas? Export a backup first."))return;
+      "Delete all local ASCEND quests, XP, wellness, wins, and ideas? Export a backup first.",{phrase:"RESET SHARED PROFILE"}))return;
+    sync.operation="reset";sync.confirmation="RESET SHARED PROFILE";
     wellnessDraft=false;state=blank();persist();render();toast("ASCEND reset queued.");
   });
   window.addEventListener("beforeunload",e=>{

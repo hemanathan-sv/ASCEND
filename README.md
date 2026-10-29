@@ -4,9 +4,9 @@ A small tracker for daily quests, weekly outcomes, skill XP, ideas and optional 
 
 ## Shared profile
 
-The private hosted app uses one shared profile for the two invited people. Both see all quests, completed tasks, XP, weekly outcomes, recent wins, ideas and wellness records. The focus timer stays local to each browser.
+The private hosted app uses one shared profile for the two invited people. Both see all quests, completed tasks, XP, weekly outcomes, recent wins, ideas and wellness records. Each person edits their own daily wellness check-in; each date can hold both entries and one unattributed legacy record. The focus timer stays local to each browser.
 
-The Worker serves the existing interface and `GET /api/shared` / `PUT /api/shared`. One private R2 object, `ascend/shared-state-v1.json`, stores the profile. The `BUCKET` binding is declared in `.openai/hosting.json`; Sites provisions the storage. No storage credentials belong in GitHub.
+The Worker serves the existing interface and `GET /api/shared` / `PUT /api/shared`. The primary private R2 object, `ascend/shared-state-v1.json`, stores the profile. A separate server-owned identity registry records at most two platform-authenticated subject IDs. Exact pre-write snapshots are kept under the private ascend/recovery/ prefix. The `BUCKET` binding is declared in `.openai/hosting.json`; Sites provisions the storage. No storage credentials belong in GitHub.
 
 Each write must match the version previously read. R2 evaluates conditional writes atomically ([Cloudflare documentation](https://developers.cloudflare.com/r2/reference/consistency/)). A conflict freezes shared editing and offers an unsaved backup and a confirmed “Load latest” action. It never force-overwrites the other person's version. A lost save acknowledgement is recovered only when the remote document matches the submitted snapshot.
 
@@ -21,7 +21,7 @@ The app checks for remote changes every 15 seconds and when returning to the tab
 - Levels use 150 XP. Skill XP and recent wins derive from completed records, so toggling a task cannot double-count rewards.
 - Run a 15, 25 or 45 minute focus sprint. Timer use earns no XP.
 - Optionally save mood, sleep, energy and a short note; both invited people can read them.
-- Export JSON backups. Import and reset require explicit confirmation that both people's shared profile will be replaced. Invalid backups are rejected without truncating data.
+- Export JSON backups. Import and reset require an in-page typed-phrase confirmation that both people's shared profile will be replaced. Invalid backups are rejected without truncating data.
 
 Limits: 500 daily records, 100 weekly outcomes, 500 wellness records, 100 ideas and 150,000 bytes per API write. Data exceeding a limit is rejected and remains available for export; it is not silently trimmed.
 
@@ -37,7 +37,7 @@ node --test server/bundle.test.mjs
 node scripts/preview.mjs
 ```
 
-The preview listens only at `http://127.0.0.1:4318`. It uses **simulated identity and in-memory R2**, loses its records when stopped, and is for local QA only. It is not evidence of live authentication or persistent online storage. The adapter is excluded from the deployment bundle.
+The preview listens only at `http://127.0.0.1:4318`. It uses **simulated identities (127.0.0.1 and localhost represent different people) and in-memory R2**, loses its records when stopped, and is for local QA only. It is not evidence of live authentication or persistent online storage. The adapter is excluded from the deployment bundle.
 
 A static server can still preview the browser-only app. A hosted Worker injects a “shared required” marker, so API errors (including 404) never silently turn the production app into local-only mode. Modern module scripts require HTTP; use a local server instead of opening index.html directly.
 
@@ -63,3 +63,13 @@ The identity headers are trustworthy **only behind Sites' authenticated dispatch
 Wellness records are intentionally shared by the two approved people. There is no analytics or record logging. Session drafts and downloaded backups also contain wellness information; handle them as private data.
 
 The unrelated `game-forge/` project is retained and excluded from the ASCEND Worker.
+
+## Wellness schema v3 and recovery
+
+GET /api/shared returns schemaVersion 3 and the platform-authenticated userId, without email or display name. Wellness dates contain arrays of records with authorId, mood, sleep, energy and note. Regular writes preserve every other author's and unattributed record byte for byte in meaning. The server rejects invented authors, duplicate same-day authors and a third registered identity. The Sites custom allowlist remains the primary access authority; registry entries are created only from trusted dispatch identity, never a submitted author field.
+
+Older saved profiles and v1/v2 backups migrate on read to authorId null. GET does not rewrite the profile. The next successful write retains the exact old document in private R2 recovery storage before committing the new schema. No legacy ownership is inferred. Reset preserves the identity registry. v3 restore accepts only author IDs that have authenticated to this profile; after complete storage loss, both people must sign in before restoring their authored backup. No backup data is silently dropped.
+
+Reset and restore are deliberate exceptions to normal own-record editing: either authorized person can replace the whole shared profile with the exact RESET SHARED PROFILE or REPLACE SHARED PROFILE confirmation and a current ETag. Backups and server recovery copies include sensitive wellness data and must stay private. Recovery copies have no public HTTP route.
+
+Quest/boss editing and destructive confirmations use accessible HTML dialogs with keyboard focus and Escape/cancel handling. Remote polling pauses while a dialog is open, preventing a stale confirmation from silently replacing a newer version. Legacy browser tabs fail closed against schema v3 and must reload; export any pending draft first.

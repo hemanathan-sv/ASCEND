@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
-import { blank, validState, fromBackup } from "../state.mjs";
+import { blank, validState, fromBackup, migrateState } from "../state.mjs";
 const source=await readFile(new URL("../app.js",import.meta.url),"utf8");
 const copy=v=>JSON.parse(JSON.stringify(v));
 const etag=n=>String(n).padStart(32,"0");
@@ -17,16 +17,35 @@ class Element {
   setAttribute(k,v){this[k]=v;}
   addEventListener(name,fn){(this.events[name]??=[]).push(fn);}
   async fire(name,e={}){for(const fn of this.events[name]??[])await fn({preventDefault(){},target:this,...e});}
+  focus(){}
   remove(){}
   click(){}
 }
-const response=(state=blank(),n=1)=>new Response(JSON.stringify({etag:etag(n),state}));
+const response=(state=blank(),n=1)=>new Response(JSON.stringify({etag:etag(n),state,userId:"test-account",schemaVersion:3}));
 async function harness(fetcher=async()=>response(),session=storage(),local=storage()){
   const ids=new Map(),cards=Array.from({length:7},()=>new Element());
   const doc={
     hidden:false,activeElement:null,body:new Element(),
     getElementById:id=>{if(!ids.has(id))ids.set(id,new Element());return ids.get(id);},
-    createElement:()=>new Element(),createTextNode:text=>({textContent:text}),
+    createElement:tag=>{
+      const n=new Element();
+      if(tag==="dialog"){
+        n.close=()=>{n.fire("close");};
+        n.showModal=()=>queueMicrotask(async()=>{
+          const form=n.children[0],editing=form.children[0].textContent==="Edit objective";
+          if(editing){
+            const answer=prompts.shift();
+            if(answer===undefined || answer===null){n.close();return;}
+            form.children[3].value=answer;
+          }else{
+            if(!confirms.shift()){n.close();return;}
+            if(form.children[2]?.textContent?.startsWith("TYPE "))form.children[3].value=form.children[2].textContent.slice(5);
+          }
+          await form.fire("submit");
+        });
+      }
+      return n;
+    },createTextNode:text=>({textContent:text}),
     querySelector:selector=>selector.includes("ascend-shared-required")?{}:null,
     querySelectorAll:selector=>selector===".card"?cards:[],
     addEventListener(){}
@@ -36,11 +55,11 @@ async function harness(fetcher=async()=>response(),session=storage(),local=stora
     fetch:fetcher,AbortController,Date,JSON,Blob,URL,console,
     setTimeout:()=>1,clearTimeout(){},setInterval(){},
     confirm:()=>confirms.shift()??false,prompt:()=>prompts.shift()??null,
-    blank,validState,fromBackup
+    blank,validState,fromBackup,migrateState
   };
   vm.createContext(context);
   const exposed=source.replace(/^import .*;\n/,"").replace(/\}\)\(\);\s*$/,
-    'globalThis.app={get state(){return state;},sync,addQuest,saveShared,refreshShared,initializeSync,importBackup,render,exportBackup};})();');
+    'globalThis.app={get state(){return state;},sync,addQuest,saveShared,refreshShared,initializeSync,importBackup,render,exportBackup,isoWeek,localDate,tick};})();');
   vm.runInContext(exposed,context);
   await new Promise(resolve=>setImmediate(resolve));
   return {app:context.app,ids,context,prompts,confirms,session,local,cards};
@@ -65,7 +84,7 @@ test("quest add/edit/complete, XP, weekly boss, vault and wellness use real UI h
   h.context.document.getElementById("vault-input").value="Later idea";await h.ids.get("vault-form").fire("submit");
   h.ids.get("wellness-sleep").value="7.5";h.ids.get("wellness-energy").value="okay";h.ids.get("wellness-note").value="Take a walk";
   await h.ids.get("wellness-form").fire("submit");await h.app.saveShared();
-  assert.equal(saved.wellness[day].sleep,7.5);assert.deepEqual(saved.vault,["Later idea"]);assert.equal(h.app.sync.dirty,false);
+  assert.equal(saved.wellness[day][0].sleep,7.5);assert.deepEqual(saved.vault,["Later idea"]);assert.equal(h.app.sync.dirty,false);
 });
 test("a second edit during PUT remains dirty and is saved with the returned ETag",async()=>{
   let release,write=0,bodies=[];
@@ -123,15 +142,15 @@ test("unsaved wellness fields survive unrelated rendering",async()=>{
 });
 test("imports and resets require confirmation and reject malformed backups without truncation",async()=>{
   const h=await harness();h.app.addQuest("Keep me","mind");
-  assert.throws(()=>h.app.importBackup({days:{},bosses:{},vault:Array(101).fill("x")}),/Invalid backup/);
-  h.app.importBackup(blank());assert.equal(Object.keys(h.app.state.days).length,1);
-  h.confirms.push(true);h.app.importBackup(blank());assert.deepEqual(copy(h.app.state),blank());
+  await assert.rejects(h.app.importBackup({days:{},bosses:{},vault:Array(101).fill("x")}),/Invalid shared state/);
+  await h.app.importBackup(blank());assert.equal(Object.keys(h.app.state.days).length,1);
+  h.confirms.push(true);await h.app.importBackup(blank());assert.deepEqual(copy(h.app.state),blank());
   h.app.addQuest("Keep until confirmed","body");await h.ids.get("reset-data").fire("click");assert.equal(Object.keys(h.app.state.days).length,1);
   h.confirms.push(true);await h.ids.get("reset-data").fire("click");assert.deepEqual(copy(h.app.state),blank());
 });
 test("existing browser data is uploaded only after explicit consent",async()=>{
   const local=storage(),data=blank();data.vault=["Local only"];local.setItem("ascend-questboard-v1",JSON.stringify(data));
-  const h=await harness(async()=>new Response(JSON.stringify({etag:null,state:blank()})),storage(),local);
+  const h=await harness(async()=>new Response(JSON.stringify({etag:null,state:blank(),userId:"test-account",schemaVersion:3})),storage(),local);
   assert.deepEqual(copy(h.app.state),blank());assert.equal(h.app.sync.dirty,false);
   h.confirms.push(true);await h.app.initializeSync();assert.deepEqual(copy(h.app.state),data);assert.equal(h.app.sync.dirty,true);
 });
@@ -139,4 +158,30 @@ test("hosted API failures never silently enter browser-only mode",async()=>{
   for(const status of [401,403,404,503]){
     const h=await harness(async()=>new Response("{}",{status}));assert.equal(h.app.sync.mode,"error");
   }
+});
+
+test("ISO week boundaries and local calendar dates stay consistent",async()=>{
+  const h=await harness();
+  assert.equal(h.app.isoWeek(new Date(2021,0,1)),"2020-W53");
+  assert.equal(h.app.isoWeek(new Date(2021,0,4)),"2021-W01");
+  assert.equal(h.app.isoWeek(new Date(2025,11,29)),"2026-W01");
+  assert.equal(h.app.localDate(new Date(2026,9,29,23,59)),"2026-10-29");
+});
+test("focus timer uses elapsed wall time after a background pause and never awards XP",async()=>{
+  const h=await harness();let now=100000;
+  h.context.Date=class extends Date{static now(){return now;}};
+  await h.ids.get("timer-toggle").fire("click");now+=95000;h.app.tick();
+  assert.equal(h.ids.get("timer").textContent,"13:25");
+  await h.ids.get("timer-toggle").fire("click");now+=50000;h.app.tick();
+  assert.equal(h.ids.get("timer").textContent,"13:25");
+  await h.ids.get("timer-toggle").fire("click");now+=805000;h.app.tick();
+  assert.equal(h.ids.get("timer").textContent,"00:00");
+  assert.equal(h.ids.get("total-xp").children[0].textContent,"0 ");
+  await h.ids.get("timer-reset").fire("click");assert.equal(h.ids.get("timer").textContent,"15:00");
+});
+test("old backups retain unknown ownership and full v3 backups round-trip unchanged",()=>{
+  const old={version:2,days:{},bosses:{},vault:[],wellness:{"2026-10-29":{mood:"okay",sleep:8,energy:"low",note:"Legacy"}}};
+  const migrated=fromBackup(old);
+  assert.equal(migrated.wellness["2026-10-29"][0].authorId,null);
+  assert.deepEqual(fromBackup({version:3,...migrated}),migrated);
 });
