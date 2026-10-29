@@ -9,8 +9,8 @@ test('Pages serves the complete app with relative assets and explicit browser st
   assert.deepEqual((await readdir(root)).sort(), ['.nojekyll', 'app.js', 'index.html', 'state.mjs', 'style.css']);
   const html = await readFile(new URL('index.html', root), 'utf8');
   assert.ok(html.includes('<meta name="ascend-storage" content="local">'));
-  assert.ok(html.includes('type="module" src="app.js"'));
-  assert.ok(html.includes('href="style.css"'));
+  assert.match(html, /type="module" src="app\.js\?v=[a-f0-9]{12}"/);
+  assert.match(html, /href="style\.css\?v=[a-f0-9]{12}"/);
   assert.ok(html.includes('id="quest-form"'));
   assert.ok(html.includes('id="wellness-form"'));
   assert.doesNotMatch(html, /http-equiv="refresh"|chatgpt\.site|ascend-shared-required|@gmail\.com|BUCKET|Both of you|Private to the two/i);

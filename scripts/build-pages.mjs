@@ -1,13 +1,18 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = resolve(root, 'dist', 'pages');
 if (!output.startsWith(root + sep) || output !== resolve(root, 'dist', 'pages')) {
   throw new Error('Refusing to clean an unexpected output directory.');
 }
+const versions = Object.fromEntries(await Promise.all(['app.js', 'style.css'].map(async file =>
+  [file, createHash('sha256').update((await readFile(resolve(root, file), 'utf8')).replace(/\r\n/g, '\n')).digest('hex').slice(0,12)])));
 const html = (await readFile(resolve(root, 'index.html'), 'utf8'))
+  .replace('src="app.js"', `src="app.js?v=${versions['app.js']}"`)
+  .replace('href="style.css"', `href="style.css?v=${versions['style.css']}"`)
   .replace('</head>', '<meta name="ascend-storage" content="local"></head>')
   .replace('ASCEND: a private, shared questboard for daily tasks, weekly goals and wellness.', 'ASCEND: daily quests, weekly goals, a focus timer and optional wellness check-ins. Progress is saved in your browser.')
   .replaceAll('Shared questboard', 'Personal questboard')
