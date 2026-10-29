@@ -58,7 +58,7 @@ async function harness(fetcher=async()=>response(),session=storage(),local=stora
     blank,validState,fromBackup,migrateState
   };
   vm.createContext(context);
-  const exposed=source.replace(/^import .*;\n/,"").replace(/\}\)\(\);\s*$/,
+  const exposed=source.replace(/^import .*;\r?\n/,"").replace(/\}\)\(\);\s*$/,
     'globalThis.app={get state(){return state;},sync,addQuest,saveShared,refreshShared,initializeSync,importBackup,render,exportBackup,isoWeek,localDate,tick};})();');
   vm.runInContext(exposed,context);
   await new Promise(resolve=>setImmediate(resolve));

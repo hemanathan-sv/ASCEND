@@ -2,6 +2,8 @@
 
 A small tracker for daily quests, weekly outcomes, skill XP, ideas and optional wellness check-ins. No streak penalties, sleep targets, analytics, external fonts or wellness XP.
 
+Open [ASCEND on GitHub Pages](https://hemanathan-sv.github.io/ASCEND/). This public entry page redirects to the existing private app, where invited accounts sign in. The repository is public; shared records stay in private storage.
+
 ## Shared profile
 
 The private hosted app uses one shared profile for the two invited people. Both see all quests, completed tasks, XP, weekly outcomes, recent wins, ideas and wellness records. Each person edits their own daily wellness check-in; each date can hold both entries and one unattributed legacy record. The focus timer stays local to each browser.
@@ -32,6 +34,7 @@ Requires Node.js 24. There are no runtime packages to install.
 ```sh
 node --check app.js
 node --test server/shared.test.mjs server/client.test.mjs
+node --test server/pages.test.mjs
 node scripts/build-private.mjs
 node --test server/bundle.test.mjs
 node scripts/preview.mjs
@@ -52,7 +55,11 @@ Keep the existing project ID and `r2: "BUCKET"` in `.openai/hosting.json`.
 5. Deploy the exact saved source version with the audience-appropriate native Sites tool. Do not enable public access to make deployment succeed.
 6. Verify anonymous requests and forged identity headers are denied at the production dispatch. Check authenticated save/load and refresh, then verify both accounts see the same record.
 
-GitHub remains the private source of truth. The Actions workflow runs on main and pull requests, tests and builds, and **never publishes GitHub Pages**. Keep repository Pages disabled. Sites publication uses the supported authenticated workflow; do not store hosting tokens in workflows.
+## GitHub Pages
+
+The Actions workflow verifies the shared app, then builds and deploys only `pages/index.html` and its fallback to GitHub Pages on main. In repository Settings → Pages, the build source is GitHub Actions. Pull requests run verification without publishing.
+
+Run `npm run build:pages` to build the public entry page in `dist/pages`. The Pages artifact contains no app bundle, API, account details or saved records. GitHub Pages serves static files; the private Worker and R2 storage continue running on Sites. The separate private build remains `npm run build` and must never be uploaded to Pages. Sites publication uses its supported authenticated workflow; do not store hosting tokens in workflows.
 
 ## Security boundary
 

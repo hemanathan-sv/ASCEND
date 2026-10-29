@@ -1,5 +1,4 @@
-name: ASCEND CI/CD
-# GitHub Pages is intentionally disabled: private source does not mean private Pages.
+name: ASCEND CI and Pages
 
 on:
   push:
@@ -10,20 +9,25 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - name: Check out ASCEND
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
+          package-manager-cache: false
       - name: Check browser app syntax
         run: node --check app.js
-      - name: Test access control and shared-state storage
-        run: node --test server/shared.test.mjs server/client.test.mjs
+      - name: Test access control, shared storage and public artifact
+        run: npm test
       - name: Build private hosting artifact
         run: node scripts/build-private.mjs
       - name: Test private bundle
@@ -31,36 +35,39 @@ jobs:
 
   build:
     needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
     steps:
       - name: Check out ASCEND
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
-      - name: Install dependencies (if needed)
-        run: npm ci
-      - name: Run production build script
-        run: node scripts/build-private.mjs
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+          package-manager-cache: false
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Build public entry page
+        run: node scripts/build-pages.mjs
+      - name: Upload public entry page
+        uses: actions/upload-pages-artifact@v4
         with:
-          name: ascend-private-artifact
-          path: dist/ # Adjust this directory based on where your build output goes
+          path: dist/pages
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # Only run deployment automatically on push to main branch
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ascend-private-artifact
-          path: dist/
-      - name: Deploy to Server/Environment
-        run: |
-          echo "Add your deployment commands or server upload steps here (e.g., SSH, RSYNC, Docker push)"
-          # Example: rsync, ssh commands, or cloud deployment action
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

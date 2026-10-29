@@ -20,7 +20,7 @@ const assets = await Promise.all(files.map(async ([path, file, type]) =>
 ));
 const apiModule = await readFile(join(root, "server", "shared.mjs"), "utf8");
 const schemaSource = (await readFile(join(root,"state.mjs"),"utf8")).replace(/^export /gm,"");
-const apiSource = schemaSource + "\n" + apiModule.replace(/^import .*;\n/gm,"").replace(/^export \{.*;\n/gm,"").replace(/^export /gm,"");
+const apiSource = schemaSource + "\n" + apiModule.replace(/^import .*;\r?\n/gm,"").replace(/^export \{.*;\r?\n/gm,"").replace(/^export /gm,"");
 const worker = `
 ${apiSource}
 const assets = new Map(${JSON.stringify(assets)});

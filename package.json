@@ -2,5 +2,9 @@
   "name": "ascend-private-questboard",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node --test server/shared.test.mjs server/client.test.mjs", "build": "node scripts/build-private.mjs" }
+  "scripts": {
+    "test": "node --test server/shared.test.mjs server/client.test.mjs server/pages.test.mjs",
+    "build": "node scripts/build-private.mjs",
+    "build:pages": "node scripts/build-pages.mjs"
+  }
 }
