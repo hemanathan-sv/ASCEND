@@ -1,3 +1,4 @@
+import { validState, blank, fromBackup } from "./state.mjs";
 (() => {
   "use strict";
   const KEY = "ascend-questboard-v1";
@@ -11,7 +12,6 @@
     body: { label: "BODY", symbol: "♥" }
   };
   const $ = id => document.getElementById(id);
-  function blank() { return { days: {}, bosses: {}, wellness: {}, vault: [] }; }
   function localDate(d = new Date()) {
     return [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
   }
@@ -23,44 +23,35 @@
     const week=Math.ceil((((utc-start)/86400000)+1)/7);
     return String(year)+"-W"+String(week).padStart(2,"0");
   }
-  function normalize(v) {
-    try {
-      if(!v || typeof v !== "object" || Array.isArray(v)) return blank();
-      const safe=blank();
-      if(v.days && typeof v.days==="object" && !Array.isArray(v.days)) {
-        for(const [date,quests] of Object.entries(v.days).slice(-500)) {
-          if(!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Array.isArray(quests)) continue;
-          safe.days[date]=quests.slice(0,3).filter(q=>q && typeof q.title==="string" && LANES[q.lane]).map(q=>({id:String(q.id),title:q.title.slice(0,120),lane:q.lane,done:!!q.done}));
-        }
-      }
-      if(v.bosses && typeof v.bosses==="object" && !Array.isArray(v.bosses)) {
-        for(const [week,boss] of Object.entries(v.bosses).slice(-100)) {
-          if(!/^\d{4}-W\d{2}$/.test(week) || !boss || typeof boss.title !== "string") continue;
-          safe.bosses[week]={title:boss.title.slice(0,160),done:!!boss.done};
-        }
-      }
-      if(v.wellness && typeof v.wellness==="object" && !Array.isArray(v.wellness)) {
-        for(const [date,entry] of Object.entries(v.wellness).slice(-500)) {
-          if(!/^\d{4}-\d{2}-\d{2}$/.test(date) || !entry || typeof entry!=="object") continue;
-          const sleep=(entry.sleep===null || entry.sleep==="" || entry.sleep===undefined)?null:Number(entry.sleep);
-          safe.wellness[date]={
-            mood:["rough","low","okay","good","great"].includes(entry.mood)?entry.mood:"",
-            sleep:sleep!==null && Number.isFinite(sleep) && sleep>=0 && sleep<=24?sleep:null,
-            energy:["low","okay","high"].includes(entry.energy)?entry.energy:"",
-            note:typeof entry.note==="string"?entry.note.slice(0,180):""
-          };
-        }
-      }
-      if(Array.isArray(v.vault)) safe.vault=v.vault.filter(s=>typeof s==="string").slice(0,100).map(s=>s.slice(0,140));
-      return safe;
-    } catch { return blank(); }
-  }
   function read() {
-    try { return normalize(JSON.parse(localStorage.getItem(KEY) || "null")); }
+    try { return fromBackup(JSON.parse(localStorage.getItem(KEY) || "null")); }
     catch { return blank(); }
   }
-  let state=read(), today=localDate(), week=isoWeek();
-  const sync={mode:"checking",etag:null,saving:false,dirty:false,timer:null};
+  const DRAFT_KEY = KEY + "-pending-shared";
+  let state=blank(), today=localDate(), week=isoWeek(), wellnessDraft=false;
+  const sync={mode:"checking",etag:null,saving:false,dirty:false,timer:null,revision:0,refreshing:false};
+  function readDraft() {
+    try {
+      const draft=JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "null");
+      return draft && validState(draft.state) && (draft.etag===null || /^[a-f0-9]{32}$/.test(draft.etag)) ? draft : null;
+    } catch { return null; }
+  }
+  function retainDraft() {
+    try { sessionStorage.setItem(DRAFT_KEY,JSON.stringify({etag:sync.etag,state})); }
+    catch { toast("This browser cannot keep an unsaved draft. Keep this tab open or export a backup."); }
+  }
+  function clearDraft() { try { sessionStorage.removeItem(DRAFT_KEY); } catch {} }
+  function editable(value) {
+    document.querySelectorAll(".card").forEach(card=>{if(card.id!=="focus")card.inert=!value;});
+  }
+  function validPayload(p) {
+    return p && Object.hasOwn(p,"etag") && (p.etag===null || (typeof p.etag==="string" && /^[a-f0-9]{32}$/.test(p.etag))) && validState(p.state);
+  }
+  async function requestShared(options={}) {
+    const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),12000);
+    try { return await fetch(SHARED_API,{credentials:"same-origin",cache:"no-store",...options,signal:controller.signal}); }
+    finally { clearTimeout(timeout); }
+  }
   let timerMinutes=15,timerRemaining=15*60,timerEnd=null,timerRunning=false;
   let toastHandle,storageWarned=false;
   const element=(tag,cls,text)=>{
@@ -74,36 +65,40 @@
     clearTimeout(toastHandle);toastHandle=setTimeout(()=>n.classList.remove("show"),3200);
   }
   function persist() {
+    sync.revision++;
     if(sync.mode==="online") {
-      sync.dirty=true;
-      scheduleSave();
+      sync.dirty=true;retainDraft();scheduleSave();
+      syncBanner("Changes pending secure sync…");
       return;
     }
-    if(sync.mode!=="local") return;
+    if(sync.mode!=="local")return;
     try { localStorage.setItem(KEY,JSON.stringify(state)); }
     catch { if(!storageWarned){toast("Storage is disabled. Export your progress.");storageWarned=true;} }
   }
   function hasProgress(s) {
-    return !!(Object.keys(s.days).length || Object.keys(s.bosses).length ||
-      Object.keys(s.wellness).length || s.vault.length);
+    return !!(Object.keys(s.days).length || Object.keys(s.bosses).length || Object.keys(s.wellness).length || s.vault.length);
   }
   function syncBanner(message,mode=sync.mode,retry=false) {
-    const banner=$("sync-banner");
-    banner.dataset.mode=mode;
+    const banner=$("sync-banner");banner.dataset.mode=mode;
     banner.replaceChildren(document.createTextNode(message));
     $("privacy-label").textContent=mode==="online"?"● Private shared profile":mode==="local"?"● Browser-only mode":"● Shared sync unavailable";
-    if(retry) {
-      const button=element("button","",mode==="conflict"?"Export backup":"Try again");
-      button.type="button";
+    if(sync.dirty || mode==="conflict"){
+      const backup=element("button","","Export unsaved backup");backup.type="button";
+      backup.addEventListener("click",exportBackup);banner.append(backup);
+    }
+    if(mode==="conflict"){
+      const latest=element("button","","Load latest shared profile");latest.type="button";
+      latest.addEventListener("click",()=>{
+        if(!confirm("Discard this tab's unsaved changes and load the latest shared profile? Export your unsaved backup first."))return;
+        sync.dirty=false;clearDraft();wellnessDraft=false;initializeSync();
+      });banner.append(latest);
+    } else if(retry) {
+      const button=element("button","","Try again");button.type="button";
       button.addEventListener("click",()=>{
-        if(sync.mode==="conflict"){ exportBackup();return; }
-        sync.mode="online";
-        document.querySelector(".workspace").inert=false;
-        syncBanner("Retrying secure sync…","online");
-        if(sync.dirty) scheduleSave();
+        if(sync.saving)return;
+        if(sync.dirty){sync.mode="online";editable(true);scheduleSave();}
         else initializeSync();
-      });
-      banner.append(button);
+      });banner.append(button);
     }
   }
   function scheduleSave() {
@@ -112,86 +107,96 @@
   }
   async function saveShared() {
     if(sync.mode!=="online" || sync.saving || !sync.dirty)return;
-    sync.saving=true;sync.dirty=false;
-    const snapshot=JSON.stringify(state);
-    syncBanner("Saving shared progress…","online");
+    if(!validState(state)){sync.mode="error";editable(false);syncBanner("Data exceeds the supported backup limits. Export a backup for recovery.",sync.mode);return;}
+    sync.saving=true;
+    const revision=sync.revision,snapshot=JSON.stringify(state);
+    syncBanner("Saving shared progress…");
     try {
-      const response=await fetch(SHARED_API,{
-        method:"PUT",credentials:"same-origin",cache:"no-store",
-        headers:{"content-type":"application/json"},
+      const response=await requestShared({
+        method:"PUT",headers:{"content-type":"application/json"},
         body:JSON.stringify({etag:sync.etag,state:JSON.parse(snapshot)})
       });
       if(response.status===409) {
-        sync.mode="conflict";sync.dirty=true;
-        syncBanner("Both browsers changed progress at once. Export this browser's backup before reloading.",sync.mode,true);
-        document.querySelector(".workspace").inert=true;
-        return;
+        // A timed-out request may already have committed. Recognize that safely.
+        const latest=await requestShared(), payload=latest.ok?await latest.json():null;
+        if(!validPayload(payload) || JSON.stringify(payload.state)!==snapshot) {
+          sync.mode="conflict";editable(false);
+          syncBanner("Both browsers changed progress. Your unsaved version is kept in this tab. Export it, then load the latest profile.",sync.mode);return;
+        }
+        sync.etag=payload.etag;
+      } else {
+        if(!response.ok)throw new Error("Save failed");
+        const result=await response.json();
+        if(typeof result.etag!=="string" || !/^[a-f0-9]{32}$/.test(result.etag))throw new Error("Invalid response");
+        sync.etag=result.etag;
       }
-      if(!response.ok)throw new Error("Save failed: "+response.status);
-      const result=await response.json();
-      if(typeof result.etag!=="string")throw new Error("Invalid save response");
-      sync.etag=result.etag;
-      syncBanner("✓ Synced securely · Shared with authorized visitors");
+      sync.dirty=sync.revision!==revision;
+      if(sync.dirty)retainDraft();else clearDraft();
+      syncBanner(sync.dirty?"Saving remaining changes…":"✓ Synced securely · Shared with authorized visitors");
     } catch {
-      sync.mode="error";sync.dirty=true;
-      syncBanner("Couldn't save shared progress. Keep this tab open, then try again.",sync.mode,true);
-      document.querySelector(".workspace").inert=true;
+      sync.mode="error";sync.dirty=true;retainDraft();editable(false);
+      syncBanner("Couldn't confirm the save. Your draft is kept in this tab, including after refresh. Retry or export it.",sync.mode,true);
     } finally {
       sync.saving=false;
       if(sync.mode==="online" && sync.dirty)scheduleSave();
     }
   }
   async function initializeSync() {
+    if(sync.saving)return;
     if(location.protocol==="file:"){
-      sync.mode="local";syncBanner("Browser-only mode · Open the private hosted app to sync across devices.");
-      document.querySelector(".workspace").inert=false;
-      return;
+      state=read();sync.mode="local";render();syncBanner("Browser-only mode · Open the private hosted app to sync across devices.");editable(true);return;
     }
-    sync.mode="checking";syncBanner("Connecting to private shared progress…");
-    document.querySelector(".workspace").inert=true;
+    sync.mode="checking";syncBanner("Connecting to private shared progress…");editable(false);
     try {
-      const response=await fetch(SHARED_API,{credentials:"same-origin",cache:"no-store"});
-      if(response.status===404) {
-        sync.mode="local";syncBanner("Browser-only preview · Not connected to shared storage.");
-        document.querySelector(".workspace").inert=false;
-        return;
+      const response=await requestShared();
+      if(response.status===404 && !document.querySelector('meta[name="ascend-shared-required"]')) {
+        state=read();sync.mode="local";render();syncBanner("Browser-only preview · Not connected to shared storage.");editable(true);return;
       }
       if(!response.ok)throw new Error("Shared profile unavailable");
       const payload=await response.json();
-      if(!Object.hasOwn(payload,"etag") || !payload.state || (payload.etag!==null && typeof payload.etag!=="string"))
-        throw new Error("Invalid shared profile");
-      const serverState=normalize(payload.state);
-      const localState=read();
+      if(!validPayload(payload))throw new Error("Invalid shared profile");
+      const draft=readDraft(), localState=read();
       sync.etag=payload.etag;sync.mode="online";
-      state=serverState;
-      render();
-      document.querySelector(".workspace").inert=false;
+      if(draft && JSON.stringify(draft.state)!==JSON.stringify(payload.state)) {
+        state=draft.state;sync.dirty=true;render();
+        if(draft.etag!==payload.etag){
+          sync.etag=draft.etag;sync.mode="conflict";editable(false);
+          syncBanner("A draft from this tab conflicts with newer shared progress. Export it, then load the latest profile.",sync.mode);return;
+        }
+        editable(true);scheduleSave();syncBanner("Recovered this tab's unsaved changes. Retrying secure sync…");return;
+      }
+      clearDraft();sync.dirty=false;state=payload.state;render();editable(true);
       syncBanner("✓ Connected · Private shared progress is up to date");
       if(payload.etag===null && hasProgress(localState) &&
-          confirm("This browser has existing ASCEND progress. Upload it—including wellness—to the shared profile for both authorized people?")) {
-        state=localState;render();sync.dirty=true;scheduleSave();
+          confirm("Upload this browser's existing ASCEND progress, including wellness, to the shared profile for both authorized people?")) {
+        state=localState;render();persist();
       }
     } catch {
-      sync.mode="error";
-      syncBanner("Private sync is unavailable. No changes will be saved until it reconnects.",sync.mode,true);
-      document.querySelector(".workspace").inert=true;
+      const draft=readDraft();if(draft){state=draft.state;sync.etag=draft.etag;sync.dirty=true;render();}
+      sync.mode="error";editable(false);
+      syncBanner("Private sync is unavailable. Reconnect before editing. Unsaved changes can be exported.",sync.mode,true);
     }
   }
   async function refreshShared() {
-    if(sync.mode!=="online" || sync.saving || sync.dirty || document.hidden)return;
+    if(sync.mode!=="online" || sync.saving || sync.dirty || sync.refreshing || document.hidden || wellnessDraft ||
+        document.activeElement?.matches("input, textarea, select"))return;
+    const revision=sync.revision;sync.refreshing=true;
     try {
-      const response=await fetch(SHARED_API,{credentials:"same-origin",cache:"no-store"});
-      if(!response.ok)throw new Error("Sync refresh failed");
+      const response=await requestShared();
+      if(!response.ok)throw new Error("Refresh failed");
       const payload=await response.json();
+      if(!validPayload(payload))throw new Error("Invalid shared profile");
+      // Edits or a save made while GET was in flight always win locally.
+      if(sync.revision!==revision || sync.dirty || sync.saving || sync.mode!=="online" || wellnessDraft ||
+          document.activeElement?.matches("input, textarea, select"))return;
       if(payload.etag!==sync.etag){
-        state=normalize(payload.state);sync.etag=payload.etag;
-        render();syncBanner("✓ Updated with progress from the other browser");
+        state=payload.state;sync.etag=payload.etag;render();syncBanner("✓ Updated with progress from the other browser");
       }
     } catch {
-      sync.mode="error";
-      syncBanner("Sync connection lost. Reconnect before editing.",sync.mode,true);
-      document.querySelector(".workspace").inert=true;
-    }
+      if(sync.revision===revision && !sync.dirty && !sync.saving){
+        sync.mode="error";editable(false);syncBanner("Sync connection lost. Reconnect before editing.",sync.mode,true);
+      }
+    } finally { sync.refreshing=false; }
   }
   function currentQuests() {return state.days[today] || [];}
   function currentBoss() {return state.bosses[week];}
@@ -248,7 +253,13 @@
       main.append(element("strong","",q.title),element("small","",LANES[q.lane].symbol+" "+LANES[q.lane].label+" · +25 XP"));
       const remove=element("button","delete-quest","×");remove.type="button";remove.setAttribute("aria-label","Remove "+q.title);
       remove.addEventListener("click",()=>{state.days[today]=currentQuests().filter(item=>item.id!==q.id);persist();render();toast("Quest removed.");});
-      row.append(input,main,remove);host.append(row);
+      const edit=element("button","edit-quest","Edit");edit.type="button";edit.setAttribute("aria-label","Edit "+q.title);
+      edit.addEventListener("click",()=>{
+        const title=prompt("Edit this quest:",q.title);
+        if(title===null || !title.trim())return;
+        q.title=title.trim().slice(0,120);persist();render();
+      });
+      row.append(input,main,edit,remove);host.append(row);
     });
     const full=quests.length>=3;
     $("quest-title").disabled=full;$("quest-lane").disabled=full;$("add-quest").disabled=full;
@@ -301,6 +312,7 @@
   }
   const moods={rough:"😞",low:"😕",okay:"😐",good:"🙂",great:"😄"};
   function renderWellness() {
+    if(wellnessDraft)return;
     const entry=state.wellness[today] || null;
     document.querySelectorAll('input[name="wellness-mood"]').forEach(input=>{
       input.checked=!!entry && input.value===entry.mood;
@@ -366,14 +378,16 @@
       toast("Reconnect shared sync before importing. You can still export a backup.");
       return;
     }
-    if(!raw || typeof raw!=="object" || Array.isArray(raw) || !raw.days || !raw.bosses || !Array.isArray(raw.vault))throw new Error("Invalid backup");
+    const imported=fromBackup(raw);
     if(!confirm(sync.mode==="online"?"Replace shared ASCEND progress for both people with this backup?":"Replace progress in this browser with the imported backup?"))return;
-    state=normalize(raw);
+    state=imported;wellnessDraft=false;
     persist();render();toast(sync.mode==="online"?"Shared backup queued for sync.":"Backup restored.");
   }
   document.querySelectorAll(".side-link").forEach(link=>link.addEventListener("click",()=>{
     document.querySelectorAll(".side-link").forEach(n=>n.classList.toggle("active",n===link));
   }));
+  $("wellness-form").addEventListener("input",()=>{wellnessDraft=true;});
+  $("wellness-form").addEventListener("change",()=>{wellnessDraft=true;});
   $("wellness-form").addEventListener("submit",e=>{
     e.preventDefault();
     const mood=document.querySelector('input[name="wellness-mood"]:checked')?.value || "";
@@ -383,7 +397,7 @@
     const note=$("wellness-note").value.trim().slice(0,180);
     if(sleep!==null && (!Number.isFinite(sleep) || sleep<0 || sleep>24)){toast("Please enter a sleep duration between 0 and 24 hours, or leave it blank.");return;}
     if(!mood && sleep===null && !energy && !note){toast("Choose at least one thing to check in about.");return;}
-    state.wellness[today]={mood,sleep,energy,note};
+    wellnessDraft=false;state.wellness[today]={mood,sleep,energy,note};
     persist();renderWellness();toast(sync.mode==="online"?"Wellness queued for shared sync. No XP needed.":"Wellness saved in this browser. No XP needed.");
   });
   $("quest-form").addEventListener("submit",e=>{
@@ -425,8 +439,13 @@
     if(!confirm(sync.mode==="online"?
       "Reset EVERYTHING for both authorized users, including shared wellness? Export a backup first.":
       "Delete all local ASCEND quests, XP, wellness, wins, and ideas? Export a backup first."))return;
-    state=blank();persist();render();toast("ASCEND reset.");
+    wellnessDraft=false;state=blank();persist();render();toast("ASCEND reset queued.");
   });
+  window.addEventListener("beforeunload",e=>{
+    if(sync.dirty || sync.saving || wellnessDraft){e.preventDefault();e.returnValue="";}
+  });
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden){maybeRollover();refreshShared();}});
+  window.addEventListener("online",()=>{if(sync.mode==="error" && !sync.dirty)initializeSync();});
   setInterval(tick,500);
   render();renderClock();
   initializeSync();

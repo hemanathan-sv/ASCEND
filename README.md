@@ -1,49 +1,65 @@
 # ASCEND — Personal Questboard
 
-A small, offline-first daily level-up tracker. Built around a simple idea: **evidence beats motivation**.
+A small tracker for daily quests, weekly outcomes, skill XP, ideas and optional wellness check-ins. No streak penalties, sleep targets, analytics, external fonts or wellness XP.
 
-## Run it
+## Shared profile
 
-Open index.html in a modern browser. It uses no paid AI services, dependencies, or build commands.
+The private hosted app uses one shared profile for the two invited people. Both see all quests, completed tasks, XP, weekly outcomes, recent wins, ideas and wellness records. The focus timer stays local to each browser.
 
-For consistent local storage behavior, you can also serve this folder using a basic static server (for example, python -m http.server inside the folder), then open the provided localhost URL.
+The Worker serves the existing interface and `GET /api/shared` / `PUT /api/shared`. One private R2 object, `ascend/shared-state-v1.json`, stores the profile. The `BUCKET` binding is declared in `.openai/hosting.json`; Sites provisions the storage. No storage credentials belong in GitHub.
 
-## How to use it
+Each write must match the version previously read. R2 evaluates conditional writes atomically ([Cloudflare documentation](https://developers.cloudflare.com/r2/reference/consistency/)). A conflict freezes shared editing and offers an unsaved backup and a confirmed “Load latest” action. It never force-overwrites the other person's version. A lost save acknowledgement is recovered only when the remote document matches the submitted snapshot.
 
-- Pick **up to three measurable quests** per day. One can be for learning, one for building, and one for your body, but choose what matters.
-- Mark a quest done **only when there is real evidence**. Each gives 25 XP.
-- Set a **weekly boss**—one deliverable you can demonstrate. Defeating it gives 100 XP.
-- Use a **15, 25, or 45 minute focus sprint** when you're finding it hard to start. Timer use itself earns no XP.
-- Use the **optional wellness check-in** to reflect on mood, sleep, energy, or what might help. There are no sleep targets and no XP tied to how you feel.
-- Park tempting side projects in the **idea vault**.
-- Export a JSON backup occasionally and import it to restore progress.
+Pending shared edits are kept in this tab's sessionStorage until acknowledged, so refresh can recover them. They are not a permanent offline copy: closing the tab or clearing browser data can remove the draft. Export before closing if saving fails. Shared data is not copied into localStorage; that key is reserved for legacy/browser-only mode. Unsaved wellness form fields trigger a navigation warning.
 
-No streak penalties or guilt prompts. A missed day is a normal part of life.
+The app checks for remote changes every 15 seconds and when returning to the tab. It waits while a field is being edited or wellness fields are unsaved. Existing browser-local progress, including wellness, is uploaded only after explicit consent and only into an empty shared profile.
 
-## Data and privacy
+## Use it
 
-Everything, including wellness check-ins, lives in your browser's localStorage under the key ascend-questboard-v1. There is no tracking, account, cloud sync, or API key. Clearing browser storage can remove your progress; export a backup first. Wellness check-ins are optional self-reflections, not medical assessments.
+- Choose up to three measurable quests each day. Add, edit, remove, complete or uncomplete them; each completed quest earns 25 XP.
+- Set one weekly win condition; completing it earns 100 XP. Editing a completed objective marks it unfinished.
+- Levels use 150 XP. Skill XP and recent wins derive from completed records, so toggling a task cannot double-count rewards.
+- Run a 15, 25 or 45 minute focus sprint. Timer use earns no XP.
+- Optionally save mood, sleep, energy and a short note; both invited people can read them.
+- Export JSON backups. Import and reset require explicit confirmation that both people's shared profile will be replaced. Invalid backups are rejected without truncating data.
 
-## Technical checks
+Limits: 500 daily records, 100 weekly outcomes, 500 wellness records, 100 ideas and 150,000 bytes per API write. Data exceeding a limit is rejected and remains available for export; it is not silently trimmed.
 
-- Run node --check app.js to verify JavaScript syntax.
-- Manual acceptance tests to perform in a browser: add three quests, reject a fourth, complete/uncomplete a quest, set and defeat a boss, start/pause/reset the timer, add/remove an idea, record/update a wellness check-in, inspect the 7-day wellness history, export/import, reload, and test a narrow mobile viewport.
+## Local verification
 
-This is an original prototype and has not been verified in a live browser session in the current environment.
+Requires Node.js 24. There are no runtime packages to install.
 
+```sh
+node --check app.js
+node --test server/shared.test.mjs server/client.test.mjs
+node scripts/build-private.mjs
+node --test server/bundle.test.mjs
+node scripts/preview.mjs
+```
 
-## Private two-person sync (v2 source)
+The preview listens only at `http://127.0.0.1:4318`. It uses **simulated identity and in-memory R2**, loses its records when stopped, and is for local QA only. It is not evidence of live authentication or persistent online storage. The adapter is excluded from the deployment bundle.
 
-The browser UI now supports a private shared profile. When hosted with the backend, quests, XP, the idea vault, and optional wellness check-ins are intentionally visible to **both authorized visitors**. The 15/25/45-minute focus timer remains local to each device.
+A static server can still preview the browser-only app. A hosted Worker injects a “shared required” marker, so API errors (including 404) never silently turn the production app into local-only mode. Modern module scripts require HTTP; use a local server instead of opening index.html directly.
 
-- `server/shared.mjs` implements `GET /api/shared` and `PUT /api/shared` for a Sites Worker, backed by one R2 JSON object.
-- The Worker requires a platform-authenticated user and must be deployed behind a **custom private allowlist** limited to the two approved accounts. The API checks same-origin writes and uses conditional ETags to reject conflicting edits.
-- `scripts/build-private.mjs` assembles the Worker and static UI into `dist/server/index.js` and `dist/.openai/hosting.json`.
-- `node --test server/shared.test.mjs` verifies API behavior; after building, `node --test server/bundle.test.mjs` verifies the private bundle.
-- The private hosting project ID is in `.openai/hosting.json`. The binding name is `BUCKET`; no R2 keys are stored in GitHub.
-- Existing browser data is **not silently uploaded**: if the remote shared profile is empty, ASCEND asks before importing any saved local data, including wellness.
-- On an offline/local-file copy, the UI remains browser-local. A deployed Worker without storage refuses writes rather than pretending to synchronize.
+## Private hosting
 
-**Security:** Do not enable GitHub Pages for this repository. GitHub Pages is normally public even when this repository is private. The GitHub Actions workflow only checks and packages the source; it intentionally does not publish a public site.
+Keep the existing project ID and `r2: "BUCKET"` in `.openai/hosting.json`.
 
-**Status:** This is the committed shared-sync implementation, not proof of a live deployment. Private Sites publication and the second viewer's invitation still require completion; the browser UI remains available locally in the meantime.
+1. Use the supported Sites source workflow from this checkout. Open with `create_source_repository_write_credential` and the installed `site-workflow.mjs` helper; pass credentials through hidden stdin only.
+2. Build and test, then package with the same helper. Its archive contains only the Worker and hosting manifest. Never edit protected helpers or bypass execution restrictions.
+3. Inspect the Sites policy: `custom`, Hem as owner, no groups or extra editors, and only the intended second viewer. Until the second person's address is supplied, keep the project owner-only.
+4. Use the provider's secure email invitation to add the second person as a viewer, not a project editor. Do not put their address in source. Invitation acceptance and a test in that person's account are required to verify two-person access.
+5. Deploy the exact saved source version with the audience-appropriate native Sites tool. Do not enable public access to make deployment succeed.
+6. Verify anonymous requests and forged identity headers are denied at the production dispatch. Check authenticated save/load and refresh, then verify both accounts see the same record.
+
+GitHub remains the private source of truth. The Actions workflow runs on main and pull requests, tests and builds, and **never publishes GitHub Pages**. Keep repository Pages disabled. Sites publication uses the supported authenticated workflow; do not store hosting tokens in workflows.
+
+## Security boundary
+
+Sites dispatch owns sign-in and the private allowlist. The Worker additionally rejects requests without platform identity, rejects cross-origin/non-JSON writes, validates an exact shared schema, bounds streamed request bytes, and refuses unavailable or corrupt storage. Responses are private/no-store. User strings render through textContent.
+
+The identity headers are trustworthy **only behind Sites' authenticated dispatch**, which must replace browser-supplied values. These headers are not a standalone authentication system. Never expose this Worker through a direct public workers.dev route, a public Site, or an unprotected proxy. Do not add sign-in bypass tokens to the browser, source, CI or backups.
+
+Wellness records are intentionally shared by the two approved people. There is no analytics or record logging. Session drafts and downloaded backups also contain wellness information; handle them as private data.
+
+The unrelated `game-forge/` project is retained and excluded from the ASCEND Worker.

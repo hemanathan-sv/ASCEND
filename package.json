@@ -1,0 +1,6 @@
+{
+  "name": "ascend-private-questboard",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test server/shared.test.mjs server/client.test.mjs", "build": "node scripts/build-private.mjs" }
+}

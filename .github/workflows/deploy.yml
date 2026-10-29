@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  pull_request:
 
 permissions:
   contents: read
@@ -22,7 +23,7 @@ jobs:
       - name: Check browser app syntax
         run: node --check app.js
       - name: Test access control and shared-state storage
-        run: node --test server/shared.test.mjs
+        run: node --test server/shared.test.mjs server/client.test.mjs
       - name: Build private hosting artifact
         run: node scripts/build-private.mjs
       - name: Test private bundle
