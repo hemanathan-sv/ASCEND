@@ -22,6 +22,18 @@ class Element {
   click(){}
 }
 const response=(state=blank(),n=1)=>new Response(JSON.stringify({etag:etag(n),state,userId:"test-account",schemaVersion:3}));
+test("focus quest completion uses normal XP and open focus never completes a task",async()=>{
+  const h=await harness();h.app.addQuest("First","build");h.app.addQuest("Second","mind");
+  const quests=Object.values(h.app.state.days)[0];
+  h.ids.get("focus-quest").value=quests[1].id;await h.ids.get("focus-quest").fire("change");
+  await h.ids.get("focus-complete").fire("click");
+  assert.equal(quests[0].done,false);assert.equal(quests[1].done,true);
+  assert.equal(h.ids.get("total-xp").children[0].textContent,"25 ");
+  h.ids.get("focus-quest").value="";await h.ids.get("focus-quest").fire("change");
+  assert.equal(h.ids.get("focus-complete").disabled,true);
+  await h.ids.get("focus-complete").fire("click");
+  assert.equal(quests[0].done,false);assert.equal(h.ids.get("total-xp").children[0].textContent,"25 ");
+});
 test("milestones follow completed records and reopening a quest removes its earned status",async()=>{
   const h=await harness();
   assert.equal(h.ids.get("milestone-count").textContent,"0 / 4 earned");

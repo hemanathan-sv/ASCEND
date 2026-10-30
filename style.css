@@ -1538,3 +1538,39 @@ body.focus-mode .game-jump {
   display:none
 }
 
+
+/* A more compact working dashboard. */
+.top { min-height:112px; }
+.top-actions { margin-top:30px; }
+h1 { font-size:32px; }
+.daily-brief { min-height:148px; padding:22px 28px; grid-template-columns:1fr 180px; }
+.daily-brief h2 { font-size:25px; }
+.daily-brief p { margin:10px 0; }
+.summit-art svg { height:112px; }
+.progress-summary { padding:20px 0; }
+.level-block { width:92px; height:92px; flex-basis:92px; }
+.level-inner strong { font-size:27px; }
+.stat strong { font-size:26px; }
+.focus-task { margin-top:22px; padding-top:18px; border-top:1px solid #304a4e; }
+.focus-task select { width:100%; text-overflow:ellipsis; }
+.focus-task button { width:100%; margin-top:10px; min-height:42px; }
+.focus-task-note { font-size:10px; line-height:1.6; color:var(--muted); margin:9px 0 0; }
+#focus .subcopy { margin:12px auto; }
+.focus-dial { width:198px; height:198px; margin-bottom:16px; }
+.clock-area { padding-top:18px; }
+.timer { font-size:46px; }
+body.focus-mode .focus-task { max-width:400px; width:100%; margin:22px auto 0; }
+@media(max-width:660px) {
+ .top { min-height:125px; padding-top:18px; }
+ .top-actions { margin:0 0 0 -8px; }
+ h1 { font-size:29px; }
+ .daily-brief { padding:20px; grid-template-columns:1fr; min-height:166px; }
+ .daily-brief h2 { font-size:23px; }
+ .daily-brief p { max-width:none; }
+ .progress-summary { padding:20px 0; }
+ .level-block { width:88px; height:88px; flex-basis:88px; }
+ .stat strong { font-size:22px; }
+ .focus-task select { font-size:16px; }
+ .focus-dial { width:208px; height:208px; }
+ body.focus-mode #focus { min-height:0; }
+}

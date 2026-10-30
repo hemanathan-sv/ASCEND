@@ -25,6 +25,7 @@ The app checks for remote changes every 15 seconds and when returning to the tab
 - Levels use 150 XP. Skill XP and recent wins derive from completed records, so toggling a task cannot double-count rewards.
 - Run a 15, 25 or 45 minute focus sprint. Timer use earns no XP.
 - Expand the focus room to hide the dashboard while the timer runs. Use Back to dashboard or Escape to return without stopping the session.
+- Select an unfinished quest in the focus room and mark it complete there. Open focus works without a quest; the timer never completes tasks automatically.
 - Collect four milestones from completed quests and weekly goals. These are derived from saved records, award no bonus XP, and update when a completion is undone.
 - Open Review to browse seven-day summaries, inspect each day's quests, and see the weekly goal result. Totals use recorded task dates and update when tasks are reopened or removed.
 - Optionally save mood, sleep, energy and a short note; both invited people can read them.

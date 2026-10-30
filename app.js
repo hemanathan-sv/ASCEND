@@ -518,7 +518,23 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   $("review-prev").addEventListener("click",()=>{reviewOffset--;reviewSelected=null;renderReview();});
   $("review-next").addEventListener("click",()=>{if(reviewOffset<0){reviewOffset++;reviewSelected=null;renderReview();}});
   $("review-current").addEventListener("click",()=>{reviewOffset=0;reviewSelected=null;renderReview();});
-  function render() { renderStats();renderQuests();renderBoss();renderWellness();renderVault();renderWins();renderReview(); }
+  let selectedFocus=null;
+  function renderFocusTask(){
+    const quests=currentQuests().filter(q=>!q.done);
+    if(selectedFocus===null || (selectedFocus && !quests.some(q=>q.id===selectedFocus)))selectedFocus=quests[0]?.id || "";
+    const select=$("focus-quest");select.replaceChildren();
+    const general=element("option","","Open focus · no quest selected");general.value="";select.append(general);
+    for(const q of quests){const option=element("option","",q.title);option.value=q.id;select.append(option);}
+    select.value=selectedFocus;
+    $("focus-complete").disabled=!selectedFocus || !["local","online"].includes(sync.mode);
+  }
+  $("focus-quest").addEventListener("change",()=>{selectedFocus=$("focus-quest").value;renderFocusTask();});
+  $("focus-complete").addEventListener("click",()=>{
+    if(!["local","online"].includes(sync.mode))return;
+    const quest=currentQuests().find(q=>q.id===selectedFocus && !q.done);if(!quest)return;
+    const previousXP=totalStats().xp;quest.done=true;persist();render();reward(XP_QUEST,previousXP);
+  });
+  function render() { renderStats();renderQuests();renderBoss();renderWellness();renderVault();renderWins();renderReview();renderFocusTask(); }
   function renderClock() {
     const m=Math.floor(timerRemaining/60),s=timerRemaining%60;
     $("timer").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");

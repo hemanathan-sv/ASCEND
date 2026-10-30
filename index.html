@@ -29,7 +29,7 @@
   </aside>
   <main class="main">
     <header class="top">
-      <div class="page-heading"><span class="eyebrow">YOUR DAILY SPACE</span><h1>A day with intention.</h1><span id="date-label"></span></div>
+      <div class="page-heading"><span class="eyebrow">YOUR DAILY SPACE</span><h1>Make today yours.</h1><span id="date-label"></span></div>
       <div class="top-actions"><button class="text-button" id="export">Export backup</button><label class="text-button import-label" for="import-file" tabindex="0" role="button">Import backup</label><input type="file" id="import-file" accept="application/json,.json" hidden></div>
     </header>
     <div class="sync-banner" id="sync-banner" role="status" aria-live="polite">Loading shared progress…</div>
@@ -82,6 +82,7 @@
         <section class="card" id="focus" aria-labelledby="focus-title">
           <div class="card-head"><div><span class="eyebrow">A LITTLE UNDIVIDED ATTENTION</span><h2 id="focus-title">Focus room</h2></div><button class="text-button" id="focus-expand" aria-pressed="false" type="button">Expand</button></div>
           <div class="focus-flex"><div><p class="subcopy">One task. A little time. Everything else can wait.</p><div class="timer-presets"><button data-minutes="15" class="preset selected">15 min</button><button data-minutes="25" class="preset">25 min</button><button data-minutes="45" class="preset">45 min</button></div></div><div class="clock-area"><div class="focus-dial" id="focus-dial"><span class="dial-caption" id="focus-state">READY WHEN YOU ARE</span><div class="timer" id="timer" role="timer" aria-label="Focus time remaining">15:00</div><span class="dial-note">Space for one thing</span></div><div class="timer-actions"><button class="action-button" id="timer-toggle">Start</button><button class="text-button" id="timer-reset">Reset</button></div></div></div>
+          <div class="focus-task"><label for="focus-quest" class="field-label">What are you working on?</label><select id="focus-quest"><option value="">Open focus · no quest selected</option></select><button type="button" class="boss-button" id="focus-complete" disabled>Complete selected quest</button><p id="focus-task-note" class="focus-task-note">The timer never marks a quest complete for you.</p></div>
           <a class="game-jump" href="#game">Play Catch the dot →</a>
         </section>
         <section class="card growth" aria-labelledby="growth-title">
