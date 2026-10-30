@@ -22,6 +22,41 @@ class Element {
   click(){}
 }
 const response=(state=blank(),n=1)=>new Response(JSON.stringify({etag:etag(n),state,userId:"test-account",schemaVersion:3}));
+test("milestones follow completed records and reopening a quest removes its earned status",async()=>{
+  const h=await harness();
+  assert.equal(h.ids.get("milestone-count").textContent,"0 / 4 earned");
+  h.app.addQuest("Read a chapter","mind");
+  assert.equal(h.ids.get("brief-title").textContent,"Read a chapter");
+  let check=h.ids.get("quest-list").children[0].children[0];check.checked=true;await check.fire("change");
+  assert.equal(h.ids.get("milestone-count").textContent,"1 / 4 earned");
+  assert.equal(h.ids.get("milestones").children[0].dataset.earned,"true");
+  assert.equal(h.ids.get("brief-title").textContent,"You've finished what you planned.");
+  assert.equal(h.ids.get("total-xp").children[0].textContent,"25 ");
+  check=h.ids.get("quest-list").children[0].children[0];check.checked=false;await check.fire("change");
+  assert.equal(h.ids.get("milestone-count").textContent,"0 / 4 earned");
+  assert.equal(h.ids.get("total-xp").children[0].textContent,"0 ");
+});
+test("expanded focus view preserves the running timer and saved progress",async()=>{
+  const h=await harness(),before=JSON.stringify(h.app.state);
+  await h.ids.get("timer-toggle").fire("click");
+  await h.ids.get("focus-expand").fire("click");
+  assert.equal(h.ids.get("focus-expand")["aria-pressed"],"true");
+  assert.equal(h.ids.get("focus-state").textContent,"IN FOCUS");
+  await h.ids.get("focus-expand").fire("click");
+  assert.equal(h.ids.get("focus-expand")["aria-pressed"],"false");
+  assert.equal(h.ids.get("timer-toggle").textContent,"Pause");
+  assert.equal(JSON.stringify(h.app.state),before);
+});
+test("all milestone thresholds derive from existing records without bonus XP",async()=>{
+  const fixture=blank();
+  for(let i=1;i<=25;i++)fixture.days["2026-09-"+String(i).padStart(2,"0")]=[0,1].map(n=>({id:i+"-"+n,title:"Task",lane:"build",done:true}));
+  fixture.bosses["2026-W39"]={title:"Weekly project",done:true};
+  const h=await harness(async()=>response(fixture));
+  assert.equal(h.ids.get("milestone-count").textContent,"4 / 4 earned");
+  assert.equal(h.ids.get("total-xp").children[0].textContent,"1350 ");
+  assert.equal(h.ids.get("sleep-summary").textContent,"—");
+  assert.equal(h.ids.get("mood-summary").textContent,"—");
+});
 test("weekly review uses Monday boundaries and ISO goal year without changing records",async()=>{
   const fixture=blank();
   fixture.days["2020-12-28"]=[{id:"a",title:"Done",lane:"build",done:true},{id:"b",title:"Pending",lane:"mind",done:false}];

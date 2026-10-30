@@ -293,10 +293,32 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     $("quest-count").replaceChildren(document.createTextNode(String(questCount)+" "),element("span","", "finished"));
     $("boss-count").replaceChildren(document.createTextNode(String(bossCount)+" "),element("span","", "cleared"));
     $("streak").replaceChildren(document.createTextNode(String(streakDays())+" "),element("span","", "days"));
+    const remaining=currentQuests().filter(q=>!q.done),hasQuests=currentQuests().length>0;
+    $("brief-title").textContent=remaining.length?remaining[0].title:hasQuests?"You've finished what you planned.":"Start with one small thing.";
+    $("brief-copy").textContent=remaining.length?remaining.length+" "+(remaining.length===1?"quest":"quests")+" left today. Choose a focus session when you're ready.":hasQuests?"Take a breath. Rest belongs in the plan, too.":"Choose up to three priorities. Leave room for the rest of your day.";
+    $("brief-action").textContent=remaining.length?"Open your quests ↗":hasQuests?"Take a break ↗":"Plan your day ↗";
+    $("brief-action").setAttribute("href",hasQuests && !remaining.length?"#game":"#today");
+    renderMilestones(questCount,bossCount);
     for(const lane of Object.keys(LANES)) {
       $(lane+"-xp").textContent=lanes[lane]+" XP";
       $(lane+"-bar").style.width=(lanes[lane]%XP_LEVEL)/XP_LEVEL*100+"%";
     }
+  }
+  function renderMilestones(quests,goals){
+    const milestones=[
+      ["First step","Complete one quest",quests,1],
+      ["Finding rhythm","Complete ten quests",quests,10],
+      ["Going further","Complete fifty quests",quests,50],
+      ["The bigger picture","Finish one weekly goal",goals,1]
+    ];
+    const host=$("milestones");host.replaceChildren();let earned=0;
+    milestones.forEach(([title,description,value,target],i)=>{
+      const unlocked=value>=target;if(unlocked)earned++;
+      const item=element("div","milestone"+(unlocked?" earned":""));item.dataset.earned=String(unlocked);
+      const gem=element("span","milestone-gem gem-"+i);gem.setAttribute("aria-hidden","true");
+      item.append(gem,element("strong","",title),element("small","",description),element("span","milestone-status",unlocked?"Earned":Math.min(value,target)+" / "+target));host.append(item);
+    });
+    $("milestone-count").textContent=earned+" / 4 earned";
   }
   function renderQuests() {
     const host=$("quest-list");host.replaceChildren();
@@ -390,6 +412,9 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   function renderWellness() {
     if(wellnessDraft)return;
     const entry=(state.wellness[today] || []).find(e=>e.authorId===userId) || null;
+    $("sleep-summary").textContent=entry?.sleep!=null?entry.sleep+" h":"—";
+    $("energy-summary").textContent=entry?.energy?entry.energy[0].toUpperCase()+entry.energy.slice(1):"—";
+    $("mood-summary").textContent=entry?.mood?entry.mood[0].toUpperCase()+entry.mood.slice(1):"—";
     document.querySelectorAll('input[name="wellness-mood"]').forEach(input=>{
       input.checked=!!entry && input.value===entry.mood;
     });
@@ -499,6 +524,8 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
     $("timer").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
     $("timer-toggle").textContent=timerRunning?"Pause":timerRemaining===0?"Restart":"Start";
     $("focus").dataset.running=String(timerRunning);
+    $("focus-dial").style.setProperty("--elapsed",(1-timerRemaining/(timerMinutes*60))*100+"%");
+    $("focus-state").textContent=timerRunning?"IN FOCUS":timerRemaining===0?"SESSION COMPLETE":timerRemaining<timerMinutes*60?"TAKE YOUR TIME":"READY WHEN YOU ARE";
     document.querySelectorAll(".preset").forEach(b=>{b.classList.toggle("selected",Number(b.dataset.minutes)===timerMinutes);b.disabled=timerRunning;});
   }
   function tick() {
@@ -571,6 +598,15 @@ import { validState, blank, fromBackup, migrateState } from "./state.mjs";
   $("timer-reset").addEventListener("click",()=>{
     timerRunning=false;timerEnd=null;timerRemaining=timerMinutes*60;renderClock();
   });
+  let focusExpanded=false;
+  function setFocusExpanded(value){
+    focusExpanded=value;document.body.classList.toggle("focus-mode",value);
+    $("focus-expand").textContent=value?"Back to dashboard":"Expand";
+    $("focus-expand").setAttribute("aria-pressed",String(value));
+    $("focus-expand").focus({preventScroll:true});
+  }
+  $("focus-expand").addEventListener("click",()=>setFocusExpanded(!focusExpanded));
+  document.addEventListener("keydown",e=>{if(e.key==="Escape" && focusExpanded)setFocusExpanded(false);});
   $("export").addEventListener("click",exportBackup);
   document.querySelector('label[for="import-file"]')?.addEventListener("keydown",e=>{
     if(e.key==="Enter" || e.key===" "){e.preventDefault();$("import-file").click();}

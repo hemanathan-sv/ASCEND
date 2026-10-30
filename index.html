@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#151714">
+  <meta name="theme-color" content="#101416">
   <meta name="description" content="ASCEND: a private, shared questboard for daily tasks, weekly goals and wellness.">
   <title>ASCEND · Shared questboard</title>
   <link rel="stylesheet" href="style.css">
@@ -29,10 +29,11 @@
   </aside>
   <main class="main">
     <header class="top">
-      <div class="page-heading"><h1>Today</h1><span id="date-label"></span></div>
+      <div class="page-heading"><span class="eyebrow">YOUR DAILY SPACE</span><h1>A day with intention.</h1><span id="date-label"></span></div>
       <div class="top-actions"><button class="text-button" id="export">Export backup</button><label class="text-button import-label" for="import-file" tabindex="0" role="button">Import backup</label><input type="file" id="import-file" accept="application/json,.json" hidden></div>
     </header>
     <div class="sync-banner" id="sync-banner" role="status" aria-live="polite">Loading shared progress…</div>
+    <section class="daily-brief" aria-labelledby="brief-title"><div><span class="eyebrow">TODAY'S DIRECTION</span><h2 id="brief-title">Start with one small thing.</h2><p id="brief-copy">Choose up to three priorities. Leave room for the rest of your day.</p><a href="#today" class="brief-link" id="brief-action">Plan your day <span aria-hidden="true">↗</span></a></div><div class="summit-art" aria-hidden="true"><svg viewBox="0 0 320 190"><defs><linearGradient id="summit-fill" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8fe1c5"/><stop offset="1" stop-color="#244b46"/></linearGradient></defs><circle cx="160" cy="93" r="76"/><circle cx="160" cy="93" r="59"/><path class="peak-back" d="M34 161 108 56 169 161Z"/><path class="peak-front" d="M99 161 189 24 282 161Z"/><path class="peak-light" d="m189 24-18 137H99Z"/><path class="peak-line" d="m189 24 22 68-22-10-18 13-13-13"/><path class="ground" d="M19 162h281"/></svg><span>ONE STEP AT A TIME</span></div></section>
     <section class="progress-summary" aria-label="Shared progress">
       <div class="level-block" id="level-ring"><div class="level-inner"><small>Level</small><strong id="hero-level">01</strong><span id="level-sub">0 / 150 XP</span></div><div class="level-meter" aria-hidden="true"></div></div>
       <div class="stats">
@@ -45,7 +46,7 @@
     <div class="workspace">
       <div class="primary-col">
         <section class="card" id="today" aria-labelledby="today-title">
-          <div class="card-head"><h2 id="today-title">Daily quests</h2><span class="chip" id="today-chip">0 / 3 done</span></div>
+          <div class="card-head"><div><span class="eyebrow">01 / YOUR PRIORITIES</span><h2 id="today-title">Daily quests</h2></div><span class="chip" id="today-chip">0 / 3 done</span></div>
           <p class="subcopy">Up to three tasks. Give each one a clear finish.</p>
           <div class="quest-progress"><div id="quest-progress-fill"></div></div>
           <p class="day-status" id="day-status">Complete a quest to earn 25 XP.</p>
@@ -61,11 +62,7 @@
           <p class="subcopy">One larger goal, such as finishing a chapter or a working prototype.</p>
           <div id="boss-box" class="boss-box"></div>
         </section>
-        <section class="card" id="focus" aria-labelledby="focus-title">
-          <div class="card-head"><h2 id="focus-title">Focus timer</h2><span class="section-note">This device</span></div>
-          <div class="focus-flex"><div><p class="subcopy">Choose a session length and start when you're ready.</p><div class="timer-presets"><button data-minutes="15" class="preset selected">15 min</button><button data-minutes="25" class="preset">25 min</button><button data-minutes="45" class="preset">45 min</button></div></div><div class="clock-area"><div class="timer" id="timer" role="timer" aria-label="Focus time remaining">15:00</div><div class="timer-actions"><button class="action-button" id="timer-toggle">Start</button><button class="text-button" id="timer-reset">Reset</button></div></div></div>
-          <a class="game-jump" href="#game">Play Catch the dot →</a>
-        </section>
+
         <section class="card" id="game" aria-labelledby="game-title">
           <div class="card-head"><h2 id="game-title">Catch the dot</h2><span class="section-note">Just for fun · No XP</span></div>
           <p class="subcopy">Tap the dot. It moves. How many can you catch in 20 seconds?</p>
@@ -82,6 +79,11 @@
         </section>
       </div>
       <div class="secondary-col">
+        <section class="card" id="focus" aria-labelledby="focus-title">
+          <div class="card-head"><div><span class="eyebrow">A LITTLE UNDIVIDED ATTENTION</span><h2 id="focus-title">Focus room</h2></div><button class="text-button" id="focus-expand" aria-pressed="false" type="button">Expand</button></div>
+          <div class="focus-flex"><div><p class="subcopy">One task. A little time. Everything else can wait.</p><div class="timer-presets"><button data-minutes="15" class="preset selected">15 min</button><button data-minutes="25" class="preset">25 min</button><button data-minutes="45" class="preset">45 min</button></div></div><div class="clock-area"><div class="focus-dial" id="focus-dial"><span class="dial-caption" id="focus-state">READY WHEN YOU ARE</span><div class="timer" id="timer" role="timer" aria-label="Focus time remaining">15:00</div><span class="dial-note">Space for one thing</span></div><div class="timer-actions"><button class="action-button" id="timer-toggle">Start</button><button class="text-button" id="timer-reset">Reset</button></div></div></div>
+          <a class="game-jump" href="#game">Play Catch the dot →</a>
+        </section>
         <section class="card growth" aria-labelledby="growth-title">
           <div class="card-head"><h2 id="growth-title">Skills</h2><span class="section-note">25 XP per quest</span></div>
           <div class="growth-list">
@@ -93,6 +95,7 @@
         <section class="card wellness-card" id="wellness" aria-labelledby="wellness-title">
           <div class="card-head"><h2 id="wellness-title">Wellness</h2><span class="section-note">Optional</span></div>
           <p class="subcopy">Your own daily check-in. Both of you can read the history.</p>
+          <div class="wellness-overview" aria-label="Your saved check-in today"><div><span>Sleep</span><strong id="sleep-summary">—</strong></div><div><span>Energy</span><strong id="energy-summary">—</strong></div><div><span>Mood</span><strong id="mood-summary">—</strong></div></div>
           <form id="wellness-form">
             <fieldset class="mood-fieldset"><legend class="field-label">How are you feeling?</legend><div class="mood-options" role="radiogroup" aria-label="Mood">
               <label class="mood-option"><input type="radio" name="wellness-mood" value="rough"><span>Rough</span></label>
@@ -118,6 +121,7 @@
         </section>
       </div>
     </div>
+    <section class="card milestones-card" aria-labelledby="milestones-title"><div class="card-head"><div><span class="eyebrow">COLLECTED ALONG THE WAY</span><h2 id="milestones-title">Small wins. Lasting proof.</h2></div><span class="chip" id="milestone-count">0 / 4 earned</span></div><p class="subcopy">Milestones follow your completed quests. No deadlines, no extra XP.</p><div class="milestones" id="milestones"></div></section>
     <section class="card weekly-review" id="review" aria-labelledby="review-title">
       <div class="card-head"><div><h2 id="review-title">Weekly review</h2><p class="subcopy">See what you finished, one week at a time.</p></div><button class="text-button" id="review-current" type="button">Current week</button></div>
       <div class="review-navigation"><button class="boss-button" id="review-prev" type="button" aria-label="Previous review week">← Previous</button><h3 id="review-range" aria-live="polite"></h3><button class="boss-button" id="review-next" type="button" aria-label="Next review week">Next →</button></div>
